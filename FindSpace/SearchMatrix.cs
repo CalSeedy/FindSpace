@@ -1,4 +1,4 @@
-﻿using SoupSoftware.FindSpace;
+using SoupSoftware.FindSpace;
 using SoupSoftware.FindSpace.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -88,7 +88,7 @@ namespace SoupSoftware.WhiteSpace
             
             int depth;
             byte[] buffer;
-            GetBitmapData(out depth, out buffer);
+            GetBitmapData(Image, out depth, out buffer);
             int len = buffer.Length / depth;
             int[] RoundCol = new int[len];
             Parallel.For(0,len, (i) => { 
@@ -128,7 +128,7 @@ namespace SoupSoftware.WhiteSpace
 
             int depth;
             byte[] buffer;
-            GetBitmapData(out depth, out buffer);
+            GetBitmapData(Image, out depth, out buffer);
 
             Parallel.For(WorkArea.Top, WorkArea.Bottom, (int i) =>
             {
@@ -139,14 +139,14 @@ namespace SoupSoftware.WhiteSpace
 
         }
 
-        private void GetBitmapData(out int depth, out byte[] buffer)
+        internal static void GetBitmapData(Bitmap image, out int depth, out byte[] buffer)
         {
-            BitmapData data = Image.LockBits(new Rectangle(0, 0, Image.Width, Image.Height), ImageLockMode.ReadWrite, Image.PixelFormat);
+            BitmapData data = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadWrite, image.PixelFormat);
             IntPtr ptr = data.Scan0;
             depth = Bitmap.GetPixelFormatSize(data.PixelFormat) / 8;
-            buffer = new byte[data.Stride * Image.Height];
+            buffer = new byte[data.Stride * image.Height];
             System.Runtime.InteropServices.Marshal.Copy(ptr, buffer, 0, buffer.Length);
-            Image.UnlockBits(data);
+            image.UnlockBits(data);
         }
 
         delegate int  GetBits(byte[] buffer, int x, int y, int width, int depth);
