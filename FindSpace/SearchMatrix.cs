@@ -191,9 +191,6 @@ namespace SoupSoftware.FindSpace
         private void CalculateXVectors(int stampwidth, Rectangle WorkArea)
         {
 
-            int rowSum;
-
-
             rowSums = new int[mask.GetLength(1)];
             //cycle through the pixels. Set the Mask Matrix to 1 or 0.  
             int width = Image.Width;
@@ -260,10 +257,10 @@ namespace SoupSoftware.FindSpace
             }
         }
 
-        private int CalculateRowSum(int y, byte[] buffer, int depth, int width, WhitespacerfinderSettings Settings)
+        private int CalculateRowSum(int y, byte[] buffer, int depth, int width, Rectangle WorkArea, WhitespacerfinderSettings Settings)
         {
             int rowSum = 0;
-            for (int x = Width - 1; x >= 0; x--)
+            for (int x = WorkArea.Right; x >= WorkArea.Left; x--)
             {
                 uint col = Getbitval(buffer, (y * width + x) * depth);
                 byte val;
@@ -287,8 +284,7 @@ namespace SoupSoftware.FindSpace
             colSums = new int[mask.GetLength(0)];
             //now reiterare as sum the number of non 0 cells in a column store in 'y' matrix, we sum from bottom up.
 
-            int colSum;
-            Parallel.For(0, Width, (x) => {
+            Parallel.For(WorkArea.Left, WorkArea.Right, (x) => {
                 colSums[x] = CalculateColSum(x, WorkArea);
                 CalculateColRuns(x, stampheight);
             });
