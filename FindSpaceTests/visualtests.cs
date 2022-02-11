@@ -51,6 +51,7 @@ namespace FindSpaceTests
 
         [DataTestMethod]
         [DynamicData(nameof(GetTestData), DynamicDataSourceType.Method)]
+        //[DataRow("TestImages/Test-Real6.bmp", typeof(BottomRightOptimiser))]
         public void TestMethod(string testfilepath, Type type)
         {
 
@@ -66,7 +67,7 @@ namespace FindSpaceTests
 
 
             wsf.backgroundcolor = Color.Empty;
-            wsf.Margins = new ManualMargin(10);
+            wsf.Margins = new AutomaticMargin();
             // wsf.Brightness = 1;
             wsf.SearchAlgorithm = new SoupSoftware.FindSpace.ExactSearch();
             Stopwatch sw = new Stopwatch();

@@ -33,6 +33,7 @@ namespace SoupSoftware.FindSpace.Interfaces
         int Top { get; }
         int Bottom { get; }
         Rectangle GetworkArea(searchMatrix masks);
+        void FromRect(Rectangle rect);
     }
 
     public interface ISearchMatrix {

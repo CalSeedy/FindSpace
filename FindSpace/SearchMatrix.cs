@@ -134,6 +134,19 @@ namespace SoupSoftware.FindSpace
         WhitespacerfinderSettings Settings;
 
         private Color backColor { get; set; }
+        
+        // Update mask to mark everything outside of workarea as occupied
+        public void MarkMask(Rectangle WorkArea)
+        {
+            Parallel.For(0, Width, x =>
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    if (x > WorkArea.Right || x < WorkArea.Left || y < WorkArea.Top || y > WorkArea.Bottom)
+                        mask[x, y] = 0;
+                }
+            });
+        }
 
         public void UpdateMask(int stampwidth, int stampheight, Rectangle WorkArea)
         {
@@ -147,7 +160,7 @@ namespace SoupSoftware.FindSpace
         {
             const ulong sumMask = ulong.MaxValue - UInt32.MaxValue;
             const ulong colorMask = UInt32.MaxValue;
-            const ulong coarseFilterMask = 0xF7F7F7;
+            const ulong coarseFilterMask = 0xFBFBFB;
             int depth;
             byte[] buffer;
             GetBitmapData(out depth, out buffer);
@@ -222,7 +235,7 @@ namespace SoupSoftware.FindSpace
 
         private void GetBitmapData(out int depth, out byte[] buffer)
         {
-            BitmapData data = Image.LockBits(new Rectangle(0, 0, Image.Width, Image.Height), ImageLockMode.ReadWrite, Image.PixelFormat);
+            BitmapData data = Image.LockBits(new Rectangle(0, 0, Image.Width, Image.Height), ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
             IntPtr ptr = data.Scan0;
             depth = Bitmap.GetPixelFormatSize(data.PixelFormat) / 8;
             buffer = new byte[data.Stride * Image.Height];

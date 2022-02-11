@@ -73,10 +73,9 @@ namespace SoupSoftware.FindSpace
 
             Rectangle TopLeftBiasedScanArea = new Rectangle(WorkArea.Left, WorkArea.Top, WorkArea.Width - stampwidth, WorkArea.Height - stampheight);
             masks.CalculateMask(stampwidth, stampheight, WorkArea);
+            
             FindResults findReturn;
             FindResults findReturn90 = new FindResults(image.Width, image.Height, TopLeftBiasedScanArea);
-
-
 
             if (Settings.Margins.AutoExpand)
             {
@@ -84,7 +83,10 @@ namespace SoupSoftware.FindSpace
                 TopLeftBiasedScanArea = RefineScanArea(masks,  TopLeftBiasedScanArea);
             }
 
-            findReturn = FindLocations(stampwidth, stampheight, masks, TopLeftBiasedScanArea);
+            if (Settings.Margins is AutomaticMargin)
+                (Settings.Margins as AutomaticMargin).Resize(masks);
+
+            findReturn = FindLocations(stampwidth, stampheight, masks, Settings.Margins.GetworkArea(masks));
 
             if (Settings.AutoRotate && !findReturn.hasExactMatches() && stampheight != stampwidth)
             {
@@ -228,15 +230,7 @@ namespace SoupSoftware.FindSpace
             int bpp = 3; //rgb
 
 
-
-            byte[] maskBytes = new byte[w * h * bpp];
-
-
-
             Bitmap maskBitmap = new Bitmap(w, h, PixelFormat.Format24bppRgb);
-
-
-
 
             BitmapData data = maskBitmap.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
             IntPtr ptr = data.Scan0;
@@ -254,13 +248,8 @@ namespace SoupSoftware.FindSpace
                     }
                 }
             }
-
-
-
             //RGB[] f = sRGB.Deserialize<RGB[]>(buffer)
             maskBitmap.UnlockBits(data);
-
-
 
             maskBitmap.Save(filepath);
         }

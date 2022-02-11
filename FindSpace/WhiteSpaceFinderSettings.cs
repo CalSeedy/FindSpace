@@ -3,12 +3,110 @@ using SoupSoftware.FindSpace.Optimisers;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 
 namespace SoupSoftware.FindSpace
 {
+    public class AutomaticMargin : iMargin
+    {
+        public AutomaticMargin()
+        {
+            Left = 0;
+            Right = 0;
+            Top = 0;
+            Bottom = 0;
+        }
 
+        public AutomaticMargin(int left, int right, int top, int bottom)
+        {
+            Left = left;
+            Right = right;
+            Top = top;
+            Bottom = bottom;
+        }
 
-   
+        public AutomaticMargin(int size)
+        {
+            Left = size;
+            Right = size;
+            Top = size;
+            Bottom = size;
+        }
+
+        public Rectangle GetworkArea(searchMatrix masks)
+        {
+            if (masks.mask.GetUpperBound(0) - (Left + Right) < 0 ||
+                masks.mask.GetUpperBound(1) - (Top + Bottom) < 0)
+            {
+                throw new IndexOutOfRangeException("The margins are larger than the image");
+            }
+
+            return new Rectangle(Left, Top, masks.mask.GetUpperBound(0) - (Left + Right), masks.mask.GetUpperBound(1) - (Top + Bottom));
+        }
+
+        public void Update(int left, int right, int top, int bottom)
+        {
+            Left = left;
+            Right = right;
+            Top = top;
+            Bottom = bottom;
+        }
+
+        public void Resize(searchMatrix mask, float filter = -1)
+        {
+            if (!mask.maskCalculated)                // no point if there is no mask to use
+                return;
+
+            bool sumsArentZeros = mask.rowSums.Any(x => x > 0) && mask.colSums.Any(x => x > 0);
+            if (!sumsArentZeros)                // false == just an array of zeros, use original margins
+                return;
+
+            if (filter < 0)
+            {
+                // we want to auto calc a filter
+                // use 10% of max-min as cutoff
+                filter = (Math.Max(mask.rowSums.Max(), mask.colSums.Max()) - Math.Min(mask.rowSums.Min(), mask.colSums.Min())) / 10f;
+            }            
+
+            var ygroup = mask.colSums.Select((x, n) => new { Sum = x, idx = n })
+                                .Where(s => s.Sum >= filter)
+                                .OrderBy(g => g.idx);
+            int xmin = ygroup.First().idx;
+            int xmax = ygroup.Last().idx;
+
+            var xgroup = mask.rowSums.Select((y, n) => new { Sum = y, idx = n })
+                                .Where(s => s.Sum >= filter)
+                                .OrderBy(g => g.idx);
+            int ymin = xgroup.First().idx;
+            int ymax = xgroup.Last().idx;
+
+            Left = xmin;
+            Right = mask.Width - xmax;
+            Top = ymin;
+            Bottom = mask.Height - ymax;
+
+            mask.MarkMask(GetworkArea(mask));
+        }
+
+        public bool AutoExpand { get; set; } = false;
+
+        public void FromRect(Rectangle rect)
+        {
+            Left = rect.Left;
+            Right = rect.Right;
+            Top = rect.Top;
+            Bottom = rect.Bottom;
+        }
+
+        public int Left { get; set; }
+
+        public int Right { get; set; }
+
+        public int Top { get; set; }
+
+        public int Bottom { get; set; }
+
+    }
 
     public class ManualMargin : iMargin
     {
@@ -36,13 +134,20 @@ namespace SoupSoftware.FindSpace
                 throw new IndexOutOfRangeException("The margins are larger than the image");
             }
 
-            return new Rectangle(Left, Top, masks.mask.GetUpperBound(0)  - (Left + Right), masks.mask.GetUpperBound(1)  - (Top + Bottom));
+            return new Rectangle(Left, Top, masks.mask.GetUpperBound(0) - (Left + Right), masks.mask.GetUpperBound(1) - (Top + Bottom));
         }
 
+        public void FromRect(Rectangle rect)
+        {
+            Left = rect.Left;
+            Right = rect.Right;
+            Top = rect.Top;
+            Bottom = rect.Bottom;
+        }
 
         public bool AutoExpand { get; set; } = true;
 
-       
+
 
         public int Left { get; set; }
 
@@ -52,7 +157,7 @@ namespace SoupSoftware.FindSpace
 
         public int Bottom { get; set; }
     }
-
+    
   
     public class WhitespacerfinderSettings
     {
