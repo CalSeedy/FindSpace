@@ -99,12 +99,30 @@ namespace SoupSoftware.FindSpace
 
                 Settings.backGroundColor = GetModalColor();
 
+            }
 
+            if (!maskCalculated)
+            {
+                // Generate mask values based on pixel values
+                int depth;
+                byte[] buffer;
+                GetBitmapData(out depth, out buffer);
+
+                Parallel.For(0, Width, x =>
+                {
+                    for (int y = 0; y < Height; y++)
+                    {
+                        uint col = Getbitval(buffer, (y * Width + x) * depth);
+
+                        mask[x, y] = (Settings.filterHigh >= col && col >= Settings.filterLow) ? (byte)1 : (byte)0;
+
+                    }
+                });
+                maskCalculated = true;
             }
 
             UpdateMask(stampwidth, stampheight, WorkArea);
 
-            maskCalculated = true;
         }
 
 
@@ -193,15 +211,10 @@ namespace SoupSoftware.FindSpace
 
             rowSums = new int[mask.GetLength(1)];
             //cycle through the pixels. Set the Mask Matrix to 1 or 0.  
-            int width = Image.Width;
-
-            int depth;
-            byte[] buffer;
-            GetBitmapData(out depth, out buffer);
 
             Parallel.For(WorkArea.Top, WorkArea.Bottom, (int i) =>
             {
-                rowSums[i] = CalculateRowSum(i, buffer, depth, width, WorkArea, Settings);
+                rowSums[i] = CalculateRowSum(i, WorkArea);
                 CalculateRowRuns(i, stampwidth);
             });
 
@@ -257,24 +270,12 @@ namespace SoupSoftware.FindSpace
             }
         }
 
-        private int CalculateRowSum(int y, byte[] buffer, int depth, int width, Rectangle WorkArea, WhitespacerfinderSettings Settings)
+        private int CalculateRowSum(int y, Rectangle WorkArea)
         {
             int rowSum = 0;
             for (int x = WorkArea.Right; x >= WorkArea.Left; x--)
-            {
-                uint col = Getbitval(buffer, (y * width + x) * depth);
-                byte val;
-                if (!maskCalculated)
-                {
-                    val = (Settings.filterHigh >= col && col >= Settings.filterLow) ? (byte)1 : (byte)0;
-                    mask[x, y] = val;
-                }
-                else
-                {
-                    val = mask[x, y];
-                }
-                rowSum += (1 - val);
-            }
+                rowSum += (1 - mask[x,y]);
+            
             return rowSum;
         }
 
@@ -315,6 +316,6 @@ namespace SoupSoftware.FindSpace
             return sum;
         }
 
-
+        
     }
 }
