@@ -44,7 +44,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ExactSearch.cs" />
     <Compile Include="FindResults.cs" />
+    <Compile Include="OptimisedSearch.cs" />
     <Compile Include="Optimiser-Base.cs" />
     <Compile Include="Optimisers-Centre.cs" />
     <Compile Include="Optimisers-Left.cs" />

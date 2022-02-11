@@ -7,6 +7,7 @@ using System.Drawing;
 namespace SoupSoftware.FindSpace
 {
 
+
    
 
     public class ManualMargin : iMargin
@@ -19,20 +20,29 @@ namespace SoupSoftware.FindSpace
             Bottom = bottom;
         }
 
-        public Rectangle GetworkArea(Bitmap image)
+        public ManualMargin(int size)
         {
-            if (image.Width - (Left + Right) < 0 ||
-                image.Height - (Top + Bottom) < 0)
+            Left = size;
+            Right = size;
+            Top = size;
+            Bottom = size;
+        }
+
+        public Rectangle GetworkArea(searchMatrix masks)
+        {
+            if (masks.mask.GetUpperBound(0) - (Left + Right) < 0 ||
+                masks.mask.GetUpperBound(1) - (Top + Bottom) < 0)
             {
                 throw new IndexOutOfRangeException("The margins are larger than the image");
             }
 
-            return new Rectangle(Left, Top, image.Width - 1 - (Left + Right), image.Height - 1 - (Top + Bottom));
+            return new Rectangle(Left, Top, masks.mask.GetUpperBound(0)  - (Left + Right), masks.mask.GetUpperBound(1)  - (Top + Bottom));
         }
 
 
         public bool AutoExpand { get; set; } = true;
 
+       
 
         public int Left { get; set; }
 
@@ -43,19 +53,89 @@ namespace SoupSoftware.FindSpace
         public int Bottom { get; set; }
     }
 
-
+  
     public class WhitespacerfinderSettings
     {
 
         //this value is used to determine if a pixel is empty or not. Future tweak to find average non black pixel and use the color of this
-        public int Brightness { get; set; } = 10;
+        private int brightness = 10;
+        public int Brightness { get { return brightness; } set { brightness = value;recalcMask(); } }
 
-        public bool AutoDetectBackGroundColor = false;
-        public Color backGroundColor { get; set; } = Color.White;
+        public int DetectionRange { get { return (int)(brightness) / 2; } }
 
-        public Color Color { get; set; } = Color.White;
+        public Color backgroundcolor = Color.Empty;
+        public Color backGroundColor { 
+            get { return backgroundcolor; }
+            set {
+                backgroundcolor = value;
+                if (backgroundcolor != Color.Empty)
+                {
+                    recalcMask();
+                }
+            
+            } } 
+
+        private void recalcMask()
+        {
+            filterLow = calcLowFilter(backgroundcolor.ToArgb(), brightness);
+            filterHigh = calcHighFilter(backgroundcolor.ToArgb(), brightness);
+
+        }
+
+        public int calcLowFilter(int color,int input)
+        {
+         int colsum=  (color & 0xFF) + ((color & 0xFF00) >> 8) + ((color & 0xFF0000) >> 16);
+            int fl;
+               
+            switch (colsum)
+            {
+                case var expression when colsum < input:
+                    fl = 0;
+                    
+                        break;
+                case var expression when colsum  > 3 * byte.MaxValue - input:
+                   
+                    fl = 3 * byte.MaxValue - input;
+                    break;
+                default:
+                    fl = (int)(colsum - input / 2);
+                   
+                    break;
+
+            }
+            return fl;
+        }
+
+        public int calcHighFilter(int colorRGB, int input)
+        {
+            
+            int colsum = (colorRGB & 0xFF) + ((colorRGB & 0xFF00) >> 8) + ((colorRGB & 0xFF0000) >> 16);
+            int fl;
+
+            switch (colsum)
+            {
+                case var expression when colsum < input:
+                    fl = input;
+
+                    break;
+                case var expression when colsum > (3 * byte.MaxValue - input):
+
+                    fl = 3 * byte.MaxValue ;
+                    break;
+                default:
+                    fl = (int)(colsum + input / 2);
+
+                    break;
+
+            }
+            return fl;
+        }
+
+        public int filterLow { get; private set; } = 755;
+        public int filterHigh { get; private set; } = 765;
 
 
+       
 
         public IDeepSearch SearchAlgorithm { get; set; } = new ExactSearch();
 

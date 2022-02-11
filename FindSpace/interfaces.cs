@@ -27,12 +27,12 @@ namespace SoupSoftware.FindSpace.Interfaces
     public interface iMargin
     {
 
-        bool AutoExpand { get; set; }
+        bool AutoExpand { get;  }
         int Left { get; }
         int Right { get; }
         int Top { get; }
         int Bottom { get; }
-        Rectangle GetworkArea(Bitmap image);
+        Rectangle GetworkArea(searchMatrix masks);
     }
 
     public interface ISearchMatrix {

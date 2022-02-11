@@ -1,4 +1,4 @@
-﻿using SoupSoftware.WhiteSpace;
+﻿using SoupSoftware.FindSpace;
 using SoupSoftware.FindSpace.Interfaces;
 using System;
 using System.Drawing;
@@ -11,72 +11,7 @@ namespace SoupSoftware.FindSpace
 
 
   
-    public class ExactSearch : IDeepSearch
-    {
-        public int Search(ISearchMatrix masks,int Left, int Top, int Width, int Height)
-        {
-            
-            {
-
-                //counts how many zeros in a given sub array.
-
-                int res = 0;
-                try
-                {
-                    for (int a = Left; a <= Left + Width; a++)
-                    {
-                        if (masks.maskvalsy[a, Top] < Height)
-                        {
-                            for (int b = Top; b <= Top + Height; b++)
-                            {
-                                if (masks.mask[a, b] == 0)
-                                {
-                                    res++;
-                                }
-                            }
-
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-
-
-                }
-
-
-                return res;
-            }
-        }
-    }
-
-    class OptimisedSearch : IDeepSearch
-    {
-        public int Search(ISearchMatrix masks, int Left, int Top, int Width, int Height)
-        {
-
-            //counts how many zeros in a given sub array.
-
-            int res = 0;
-            try
-            {
-                for (int a = Left; a <= Left + Width; a++)
-                {
-                    if (masks.maskvalsy[a, Top] < Height) { res++; }
-                }
-            }
-            catch (Exception)
-            {
-
-
-            }
-
-
-            return res;
-        }
-
-    }
-
+   
 
     public class WhiteSpaceFinder
     {
@@ -90,7 +25,7 @@ namespace SoupSoftware.FindSpace
         private void init(Bitmap image)
         {
             masks = new searchMatrix(image, this.Settings);
-            WorkArea = Settings.Margins.GetworkArea(image);
+            WorkArea = Settings.Margins.GetworkArea(masks);
 
         }
 
@@ -108,13 +43,15 @@ namespace SoupSoftware.FindSpace
         }
         public WhiteSpaceFinder(Bitmap Image, WhitespacerfinderSettings settings)
         {
-            image = Image;
+            using (Bitmap newBmp = new Bitmap(Image))
+            {
+                image = newBmp.Clone(new Rectangle(0, 0, newBmp.Width, newBmp.Height), PixelFormat.Format24bppRgb);
+            }
             Settings = settings;
             init(image);
         }
-        protected WhitespacerfinderSettings Settings;
-
-
+        public WhitespacerfinderSettings Settings { get; private set; }
+        private int forgiveness;
 
         public Rectangle? FindSpaceAt(Rectangle stamp, Point pt)
         {
@@ -284,9 +221,49 @@ namespace SoupSoftware.FindSpace
             return findReturn;
         }
 
-      
+        public void MaskToBitmap(string filepath)
+        {
+            int w = image.Width;
+            int h = image.Height;
+            int bpp = 3; //rgb
 
-      
+
+
+            byte[] maskBytes = new byte[w * h * bpp];
+
+
+
+            Bitmap maskBitmap = new Bitmap(w, h, PixelFormat.Format24bppRgb);
+
+
+
+
+            BitmapData data = maskBitmap.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+            IntPtr ptr = data.Scan0;
+
+            lock (masks.mask)
+            {
+                for (int i = 0; i < w; i++)
+                {
+                    for (int j = 0; j < h; j++)
+                    {
+                        bool maskFilter = masks.mask[i, j] == 0;
+                        System.Runtime.InteropServices.Marshal.WriteByte(ptr, j * w * bpp + i * bpp + 0, 0);
+                        System.Runtime.InteropServices.Marshal.WriteByte(ptr, j * w * bpp + i * bpp + 1, maskFilter ? (byte)0 : (byte)255);
+                        System.Runtime.InteropServices.Marshal.WriteByte(ptr, j * w * bpp + i * bpp + 2, maskFilter ? (byte)255 : (byte)0);
+                    }
+                }
+            }
+
+
+
+            //RGB[] f = sRGB.Deserialize<RGB[]>(buffer)
+            maskBitmap.UnlockBits(data);
+
+
+
+            maskBitmap.Save(filepath);
+        }
 
 
     }

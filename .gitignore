@@ -42,3 +42,6 @@
 /FindSpaceTests/bin/Debug
 /FindSpaceTests/obj/Debug
 /FindSpaceTests/obj/Release
+*/*.csproj.user
+TestImages/Test-*.bmp
+TestImages/*.pdf
