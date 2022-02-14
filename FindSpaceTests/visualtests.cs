@@ -181,8 +181,69 @@ namespace FindSpaceTests
             Trace.WriteLine($"In: 0x{color.ToArgb() & 0xFFFFFF:X6}, Modal: 0x{Colorres.ToArgb():X6}");
             Assert.AreEqual(color.ToArgb() & 0x00FFFFFF, Colorres.ToArgb());
         }
-    }
 
+        [DataTestMethod]
+        //[DataRow("TestImages/Test1.bmp", typeof(TopCentreOptimiser))]
+        [DynamicData(nameof(GetTestData), DynamicDataSourceType.Method)]
+        public void MultipleStampsTest(string testfilepath, Type type)
+        {
+            Rectangle[] stamps = new Rectangle[3];
+            stamps[0] = new Rectangle(0, 0, 50, 50);
+            stamps[1] = new Rectangle(0, 0, 75, 50);
+            stamps[2] = new Rectangle(0, 0, 50, 75);
+
+            Bitmap b = CreateBitmap(testfilepath);
+            SoupSoftware.FindSpace.Interfaces.IOptimiser optimiser;
+
+            optimiser = (IOptimiser)Activator.CreateInstance(type);
+
+
+            SoupSoftware.FindSpace.WhitespacerfinderSettings wsf = new SoupSoftware.FindSpace.WhitespacerfinderSettings();
+            wsf.Optimiser = optimiser;
+            wsf.Brightness = 30;
+            
+
+            wsf.backgroundcolor = Color.Empty;
+            wsf.Margins = new AutomaticMargin();
+            // wsf.Brightness = 1;
+            wsf.SearchAlgorithm = new SoupSoftware.FindSpace.ExactSearch();
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            SoupSoftware.FindSpace.WhiteSpaceFinder w = new SoupSoftware.FindSpace.WhiteSpaceFinder(b, wsf);
+            sw.Stop();
+            Trace.WriteLine("Init Image " + sw.ElapsedMilliseconds + " ms");
+            //Rectangle stamp = new Rectangle(0, 0, 60, 60);
+            sw.Reset();
+            sw.Start();
+            Rectangle?[] rs = w.FindSpaceFor(stamps);
+            sw.Stop();
+            Trace.WriteLine("Find Image " + sw.ElapsedMilliseconds + " ms");
+            string extension = System.IO.Path.GetExtension(testfilepath);
+            //string maskFile = testfilepath.Replace(extension, optimiser.GetType().Name + "-mask" + extension);
+            //w.MaskToBitmap(maskFile);
+            Assert.IsTrue(!rs.Contains(null));
+            if (rs != null)
+            {
+                Graphics g = System.Drawing.Graphics.FromImage(b);
+                foreach (Rectangle? r in rs)
+                    if (r != null)
+                        g.FillRectangle(Brushes.Red, r.Value);
+                
+                int x = w.Settings.Margins.Left, y = w.Settings.Margins.Top;
+                int width = (b.Width - x - w.Settings.Margins.Right);
+                int height = (b.Height - y - w.Settings.Margins.Bottom);
+                g.DrawRectangle(Pens.Blue, new Rectangle(x, y, width, height));
+                g.Flush();
+                //        Console.WriteLine(optimiser.GetType().Name + sw.ElapsedMilliseconds / 1000);
+                extension = System.IO.Path.GetExtension(testfilepath);
+                string filepath = testfilepath.Replace(extension, optimiser.GetType().Name + "-Multiple" + extension);
+                b.Save(filepath);
+
+                g.Dispose();
+                b.Dispose();
+            }
+        }
+    }
 
 }
 

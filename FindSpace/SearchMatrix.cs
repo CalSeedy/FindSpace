@@ -167,12 +167,34 @@ namespace SoupSoftware.FindSpace
             });
         }
 
+        public List<Rectangle> Stamps = new List<Rectangle>();
+
+        public void AddStampToMask(Rectangle? area)
+        {
+            if (area is null)
+                return;
+
+
+            Stamps.Add(area.Value);
+
+            if (area.Value.Bottom > Height || area.Value.Right > Width)  // we have a rotated rect
+            {
+                area = new Rectangle(area.Value.X - area.Value.Width, area.Value.Y - area.Value.Height, area.Value.Width, area.Value.Height);
+            }
+
+            for (int x = area.Value.Left; x < area.Value.Right; x++)
+            {
+                for (int y = area.Value.Top; y < area.Value.Bottom; y++)
+                {
+                    mask[x, y] = 0;
+                }
+            }
+        }
+
         public void UpdateMask(int stampwidth, int stampheight, Rectangle WorkArea)
         {
             CalculateXVectors(stampwidth, WorkArea);
             CalculateYVectors(stampheight, WorkArea);
-
-            //ApplyEdits();
         }
 
         private Color GetModalColor()

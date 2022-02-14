@@ -1,6 +1,7 @@
 ﻿using SoupSoftware.FindSpace;
 using SoupSoftware.FindSpace.Interfaces;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
@@ -20,7 +21,7 @@ namespace SoupSoftware.FindSpace
         private searchMatrix masks;
 
         private Rectangle WorkArea;
-
+        private bool AutoMarginResized = false;
 
         private void init(Bitmap image)
         {
@@ -59,6 +60,31 @@ namespace SoupSoftware.FindSpace
             return FindSpaceFor(stamp);
         }
 
+        public Rectangle[] SortStamps(Rectangle[] stamps)
+        {
+            // sort by area, then by the w/h ratio
+            Rectangle[] sorted = stamps.OrderByDescending(gr => (gr.Height * gr.Width)).ThenByDescending(gr => Math.Max(gr.Width, gr.Height) / Math.Min(gr.Width, gr.Height)).ToArray();
+            return sorted;
+        }
+
+        public Rectangle?[] FindSpaceFor(Rectangle[] stamps)
+        {
+            stamps = SortStamps(stamps);
+
+            List<Rectangle?> results = new List<Rectangle?>();
+            foreach (Rectangle stamp in stamps)
+            {
+                Rectangle? res = FindSpaceFor(stamp);
+                
+                masks.AddStampToMask(res);
+
+                results.Add(res);
+            }
+
+
+            return results.ToArray();
+        }
+
         public Rectangle? FindSpaceFor(Rectangle stamp)
         {
             if ((WorkArea.Height - (2 * Settings.Padding + stamp.Height) < 0) ||
@@ -85,18 +111,22 @@ namespace SoupSoftware.FindSpace
 
             if (Settings.Margins is AutomaticMargin)
             {
-                (Settings.Margins as AutomaticMargin).Resize(masks);
-                WorkArea = Settings.Margins.GetworkArea(masks);
-                masks.UpdateMask(stampwidth, stampheight, WorkArea);
+                if (!AutoMarginResized)
+                {
+                    (Settings.Margins as AutomaticMargin).Resize(masks);
+                    WorkArea = Settings.Margins.GetworkArea(masks);
+                    masks.UpdateMask(stampwidth, stampheight, WorkArea);
+                }
+                AutoMarginResized = true;
             }
             findReturn = FindLocations(stampwidth, stampheight, masks, WorkArea);
 
             if (Settings.AutoRotate && !findReturn.hasExactMatches() && stampheight != stampwidth)
             {
-                findReturn90 = FindLocations(stampheight, stampwidth, masks, TopLeftBiasedScanArea);
+                findReturn90 = FindLocations(stampheight, stampwidth, masks, WorkArea);
 
             }
-            return SelectBestArea(stampwidth, stampheight, TopLeftBiasedScanArea, findReturn, findReturn90);
+            return SelectBestArea(stampwidth, stampheight, WorkArea, findReturn, findReturn90);
         }
 
         private static Rectangle RefineScanArea(searchMatrix searchMatrix, Rectangle ScanArea)
@@ -166,10 +196,21 @@ namespace SoupSoftware.FindSpace
                     if (target.possibleMatches[p.X, p.Y] == target.minValue)
                     {
                         place2 = new Rectangle(p.X, p.Y, stampwidth, stampheight);
+                        break;
                     }
                 }
             }
-            place2 = new Rectangle(place2.X + Settings.Padding, place2.Y + Settings.Padding, stampwidth - 2 * Settings.Padding, stampheight - 2 * Settings.Padding);
+
+            // account for stamps on the edge where (X, Y) + (sw, sh) > (w, h)
+            int? newX = null;
+            int? newY = null;
+            if (place2.X + stampwidth > image.Width)
+                newX = place2.X - stampwidth;
+
+            if (place2.Y + stampheight > image.Height)
+                newY = place2.Y - stampheight;
+
+            place2 = new Rectangle((newX is null ? place2.X  : newX.Value) + Settings.Padding, (newY is null ? place2.Y : newY.Value) + Settings.Padding, stampwidth - 2 * Settings.Padding, stampheight - 2 * Settings.Padding);
             return place2;
         }
 
