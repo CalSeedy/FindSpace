@@ -84,9 +84,12 @@ namespace SoupSoftware.FindSpace
             }
 
             if (Settings.Margins is AutomaticMargin)
+            {
                 (Settings.Margins as AutomaticMargin).Resize(masks);
-
-            findReturn = FindLocations(stampwidth, stampheight, masks, Settings.Margins.GetworkArea(masks));
+                WorkArea = Settings.Margins.GetworkArea(masks);
+                masks.UpdateMask(stampwidth, stampheight, WorkArea);
+            }
+            findReturn = FindLocations(stampwidth, stampheight, masks, WorkArea);
 
             if (Settings.AutoRotate && !findReturn.hasExactMatches() && stampheight != stampwidth)
             {
@@ -242,9 +245,9 @@ namespace SoupSoftware.FindSpace
                     for (int j = 0; j < h; j++)
                     {
                         bool maskFilter = masks.mask[i, j] == 0;
-                        System.Runtime.InteropServices.Marshal.WriteByte(ptr, j * w * bpp + i * bpp + 0, 0);
-                        System.Runtime.InteropServices.Marshal.WriteByte(ptr, j * w * bpp + i * bpp + 1, maskFilter ? (byte)0 : (byte)255);
-                        System.Runtime.InteropServices.Marshal.WriteByte(ptr, j * w * bpp + i * bpp + 2, maskFilter ? (byte)255 : (byte)0);
+                        System.Runtime.InteropServices.Marshal.WriteByte(ptr, (j * w * bpp) + (i * bpp) + 0, 0);
+                        System.Runtime.InteropServices.Marshal.WriteByte(ptr, (j * w * bpp) + (i * bpp) + 1, maskFilter ? (byte)0 : (byte)255);
+                        System.Runtime.InteropServices.Marshal.WriteByte(ptr, (j * w * bpp) + (i * bpp) + 2, maskFilter ? (byte)255 : (byte)0);
                     }
                 }
             }

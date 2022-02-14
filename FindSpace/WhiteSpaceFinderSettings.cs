@@ -44,14 +44,6 @@ namespace SoupSoftware.FindSpace
             return new Rectangle(Left, Top, masks.mask.GetUpperBound(0) - (Left + Right), masks.mask.GetUpperBound(1) - (Top + Bottom));
         }
 
-        public void Update(int left, int right, int top, int bottom)
-        {
-            Left = left;
-            Right = right;
-            Top = top;
-            Bottom = bottom;
-        }
-
         public void Resize(searchMatrix mask, float filter = -1)
         {
             if (!mask.maskCalculated)                // no point if there is no mask to use
