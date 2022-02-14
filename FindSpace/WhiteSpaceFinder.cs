@@ -193,11 +193,22 @@ namespace SoupSoftware.FindSpace
                 FindResults target = findReturn.minValue <= findReturn90.minValue ? findReturn : findReturn90;
                 foreach (Point p in this.Settings.Optimiser.GetOptimisedPoints(ScanArea))
                 {
-                    if (target.possibleMatches[p.X, p.Y] == target.minValue)
+                    if (target.possibleMatches[p.X, p.Y] == target.minValue && (!masks.Stamps.Any(r => (r.Left <= p.X && p.X <= r.Right) && (r.Top <= p.Y && p.Y <= r.Bottom))))
                     {
                         place2 = new Rectangle(p.X, p.Y, stampwidth, stampheight);
-                        break;
                     }
+                }
+                int tmpX = WorkArea.X;
+                int tmpY = WorkArea.Y;
+                foreach (Rectangle r in masks.Stamps)
+                {
+                    if (tmpX <= r.X + r.Width + 2 * Settings.Padding)
+                        tmpX += r.Width + 2 * Settings.Padding;
+
+                    //if (tmpY <= r.Y + r.Height + 2 * Settings.Padding)
+                    //    tmpY += r.Height + 2 * Settings.Padding;
+
+                    place2 = new Rectangle(tmpX, tmpY, stampwidth, stampheight);
                 }
             }
 
