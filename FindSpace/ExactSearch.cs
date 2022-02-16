@@ -33,6 +33,22 @@ namespace SoupSoftware.FindSpace
 
                         }
                     }
+                    /*
+                    for (int a = Top; a <= Top + Height; a++)
+                    {
+                        if (masks.maskvalsx[Left, a] < Width)
+                        {
+                            for (int b = Left; b <= Left+ Width; b++)
+                            {
+                                if (masks.mask[b, a] == 0)
+                                {
+                                    res++;
+                                }
+                            }
+
+                        }
+                    }
+                    */
                 }
                 catch (Exception)
                 {

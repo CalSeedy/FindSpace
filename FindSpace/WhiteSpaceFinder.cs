@@ -1,18 +1,16 @@
 ﻿using SoupSoftware.FindSpace;
 using SoupSoftware.FindSpace.Interfaces;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Linq;
 using WhitSpace.Results;
 
 namespace SoupSoftware.FindSpace
 {
-
-
-  
-   
-
     public class WhiteSpaceFinder
     {
 
@@ -20,7 +18,7 @@ namespace SoupSoftware.FindSpace
         private searchMatrix masks;
 
         private Rectangle WorkArea;
-
+        private bool AutoMarginResized = false;
 
         private void init(Bitmap image)
         {
@@ -59,7 +57,35 @@ namespace SoupSoftware.FindSpace
             return FindSpaceFor(stamp);
         }
 
-        public Rectangle? FindSpaceFor(Rectangle stamp)
+        public Rectangle[] SortStamps(Rectangle[] stamps)
+        {
+            // sort by area, then by the w/h ratio
+            Rectangle[] sorted = stamps.OrderByDescending(gr => (gr.Height * gr.Width)).ThenByDescending(gr => Math.Max(gr.Width, gr.Height) / Math.Min(gr.Width, gr.Height)).ToArray();
+            return sorted;
+        }
+
+        public Rectangle?[] FindSpaceFor(Rectangle[] stamps, string filename = "")
+        {
+            stamps = SortStamps(stamps);
+
+            List<Rectangle?> results = new List<Rectangle?>();
+
+            int count = 0;
+            foreach (Rectangle stamp in stamps)
+            {
+                Rectangle? res = FindSpaceFor(stamp, filename, count);
+
+                masks.AddStampToMask(res);
+
+                results.Add(res);
+                count++;
+            }
+
+
+            return results.ToArray();
+        }
+
+        public Rectangle? FindSpaceFor(Rectangle stamp, string filename = "", int count = 0)
         {
             if ((WorkArea.Height - (2 * Settings.Padding + stamp.Height) < 0) ||
               (WorkArea.Width - (2 * Settings.Padding + stamp.Width) < 0)
@@ -73,30 +99,42 @@ namespace SoupSoftware.FindSpace
 
             Rectangle TopLeftBiasedScanArea = new Rectangle(WorkArea.Left, WorkArea.Top, WorkArea.Width - stampwidth, WorkArea.Height - stampheight);
             masks.CalculateMask(stampwidth, stampheight, WorkArea);
-            
+
             FindResults findReturn;
-            FindResults findReturn90 = new FindResults(image.Width, image.Height, TopLeftBiasedScanArea);
+            FindResults findReturn90 = new FindResults(image.Width, image.Height, WorkArea);
 
             if (Settings.Margins.AutoExpand)
             {
                 //this keeps the allocated space for the placement close to the contents.
-                TopLeftBiasedScanArea = RefineScanArea(masks,  TopLeftBiasedScanArea);
+                TopLeftBiasedScanArea = RefineScanArea(masks, TopLeftBiasedScanArea);
+                masks.UpdateMask(stampwidth, stampheight, WorkArea);
             }
 
             if (Settings.Margins is AutomaticMargin)
             {
-                (Settings.Margins as AutomaticMargin).Resize(masks);
-                WorkArea = Settings.Margins.GetworkArea(masks);
-                masks.UpdateMask(stampwidth, stampheight, WorkArea);
+                if (!AutoMarginResized)
+                {
+                    (Settings.Margins as AutomaticMargin).Resize(masks);
+                    WorkArea = Settings.Margins.GetworkArea(masks);
+                    masks.UpdateMask(stampwidth, stampheight, WorkArea);
+                }
+                AutoMarginResized = true;
             }
             findReturn = FindLocations(stampwidth, stampheight, masks, WorkArea);
 
             if (Settings.AutoRotate && !findReturn.hasExactMatches() && stampheight != stampwidth)
             {
-                findReturn90 = FindLocations(stampheight, stampwidth, masks, TopLeftBiasedScanArea);
+                findReturn90 = FindLocations(stampheight, stampwidth, masks, WorkArea);
 
             }
-            return SelectBestArea(stampwidth, stampheight, TopLeftBiasedScanArea, findReturn, findReturn90);
+
+            if (filename.Length > 0)
+            {
+                string extension = System.IO.Path.GetExtension(filename);
+                MaskToCSV(filename.Replace(extension, $"-{count}{extension}"));
+            }
+
+            return SelectBestArea(stampwidth, stampheight, WorkArea, findReturn, findReturn90);
         }
 
         private static Rectangle RefineScanArea(searchMatrix searchMatrix, Rectangle ScanArea)
@@ -163,38 +201,57 @@ namespace SoupSoftware.FindSpace
                 FindResults target = findReturn.minValue <= findReturn90.minValue ? findReturn : findReturn90;
                 foreach (Point p in this.Settings.Optimiser.GetOptimisedPoints(ScanArea))
                 {
-                    if (target.possibleMatches[p.X, p.Y] == target.minValue)
+                    if (target.possibleMatches[p.X, p.Y] == target.minValue &&
+                        (!masks.Stamps.Any(r => (r.Left <= p.X && p.X <= r.Right) && (r.Top <= p.Y && p.Y <= r.Bottom))))
                     {
                         place2 = new Rectangle(p.X, p.Y, stampwidth, stampheight);
                     }
                 }
+                /*
+                int tmpX = WorkArea.X;
+                int tmpY = WorkArea.Y;
+                foreach (Rectangle r in masks.Stamps)
+                {
+                    if (tmpX <= r.X + r.Width + 2 * Settings.Padding)
+                        tmpX += r.Width + 2 * Settings.Padding;
+
+                    //if (tmpY <= r.Y + r.Height + 2 * Settings.Padding)
+                    //    tmpY += r.Height + 2 * Settings.Padding;
+
+                    place2 = new Rectangle(tmpX, tmpY, stampwidth, stampheight);
+                }
+                */
             }
+
+            /*
+            // account for stamps on the edge where (X, Y) + (sw, sh) > (w, h)
+            int? newX = null;
+            int? newY = null;
+            if (place2.X + stampwidth > image.Width)
+                newX = place2.X - stampwidth;
+
+            if (place2.Y + stampheight > image.Height)
+                newY = place2.Y - stampheight;
+            */
             place2 = new Rectangle(place2.X + Settings.Padding, place2.Y + Settings.Padding, stampwidth - 2 * Settings.Padding, stampheight - 2 * Settings.Padding);
+            Trace.WriteLine($"Position found: ({place2.X},{place2.Y}) : W={place2.Width}, H={place2.Height}");
             return place2;
         }
 
-        
 
-        
 
-        
+
+
+
 
         private FindResults FindLocations(int stampwidth, int stampheight, searchMatrix masks, Rectangle ScanArea)
         {
-
-            
-
-           
-
-
             int deepCheckFail = (stampheight * stampwidth) + 1;
             FindResults findReturn = new FindResults(masks.mask.GetLength(0), masks.mask.GetLength(1), ScanArea);
             findReturn.containsResults = true;
             //iterate the 2 matrices, if the top left corners X & Y sums is greater than the sticker dimensions its a potential location, 
             // aswe add the loctions transposing the loction to the top left.
             foreach (Point p in this.Settings.Optimiser.GetOptimisedPoints(ScanArea))
-
-
             {
                 if (masks.maskvalsx[p.X, p.Y] > stampwidth && masks.maskvalsy[p.X, p.Y] > stampheight)
                 {
@@ -224,6 +281,73 @@ namespace SoupSoftware.FindSpace
             }
 
             return findReturn;
+        }
+
+        public void MaskToCSV(string filepath, char delimiter = ',', bool runs = true, bool sums = true)
+        {
+            string extension = System.IO.Path.GetExtension(filepath);
+
+            void WriteMask2D<T>(StreamWriter sw, T[,] arr)
+            {
+                lock (arr)
+                {
+                    for (int y = 0; y < arr.GetLength(1); y++)
+                    {
+                        for (int x = 0; x < arr.GetLength(0); x++)
+                        {
+                            sw.Write($"{arr[x, y]}{delimiter}");
+                        }
+                        sw.Write("\n");
+                    }
+                }
+            }
+
+            void WriteMask<T>(StreamWriter sw, T[] arr)
+            {
+                lock (arr)
+                {
+                    for (int x = 0; x < arr.Length; x++)
+                    {
+                        sw.Write($"{arr[x]}{delimiter}");
+                    }
+                    sw.Write("\n");
+                }
+            }
+
+            filepath = filepath.Replace(extension, ".csv");
+
+            using (StreamWriter sw = new StreamWriter(filepath))
+            {
+                WriteMask2D(sw, masks.mask);
+            }
+            extension = ".csv";
+            if (runs)
+            {
+                using (StreamWriter sw = new StreamWriter(filepath.Replace(extension, $"-Runs{extension}")))
+                {
+                    WriteMask2D(sw, masks.maskvalsx);
+
+                    sw.WriteLine();
+                    sw.WriteLine();
+                    sw.WriteLine();
+
+                    WriteMask2D(sw, masks.maskvalsy);
+                }
+            }
+
+            if (sums)
+            {
+                using (StreamWriter sw = new StreamWriter(filepath.Replace(extension, $"-Sums{extension}")))
+                {
+                    WriteMask(sw, masks.rowSums);
+
+                    sw.WriteLine();
+                    sw.WriteLine();
+                    sw.WriteLine();
+
+                    WriteMask(sw, masks.colSums);
+                }
+            }
         }
 
         public void MaskToBitmap(string filepath)

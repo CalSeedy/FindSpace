@@ -167,12 +167,34 @@ namespace SoupSoftware.FindSpace
             });
         }
 
+        public List<Rectangle> Stamps = new List<Rectangle>();
+
+        public void AddStampToMask(Rectangle? area)
+        {
+            if (area is null)
+                return;
+
+
+            Stamps.Add(area.Value);
+
+            if (area.Value.Bottom > Height || area.Value.Right > Width)  // we have a rotated rect
+            {
+                area = new Rectangle(area.Value.X - area.Value.Width, area.Value.Y - area.Value.Height, area.Value.Width, area.Value.Height);
+            }
+
+            for (int x = area.Value.Left; x < area.Value.Right; x++)
+            {
+                for (int y = area.Value.Top; y < area.Value.Bottom; y++)
+                {
+                    mask[x, y] = 0;
+                }
+            }
+        }
+
         public void UpdateMask(int stampwidth, int stampheight, Rectangle WorkArea)
         {
             CalculateXVectors(stampwidth, WorkArea);
             CalculateYVectors(stampheight, WorkArea);
-
-            //ApplyEdits();
         }
 
         private Color GetModalColor()
@@ -202,8 +224,8 @@ namespace SoupSoftware.FindSpace
             ulong highColRange = ((ulong)Settings.calcHighFilter((int)modalColor, Settings.DetectionRange)) << 32;
             ulong lowcolRange = ((ulong)Settings.calcLowFilter((int)modalColor, Settings.DetectionRange)) << 32;
 
-            //if ((((modalColor & sumMask) >> 32) > (ulong)(765 - Settings.Brightness)))
-            //    return Color.White;
+            if ((((modalColor & sumMask) >> 32) > (ulong)(765 - Settings.Brightness)))
+                return Color.White;
 
 
             //the below filters colors which have close sum of RGBs to the modal color (could be a completly diff color but very close sum)
@@ -283,7 +305,7 @@ namespace SoupSoftware.FindSpace
         {
             //gets a color as an int (alpha stripped)
             uint a = //sums
-                (uint)((buffer[offset + 0])| //red
+                (uint)((buffer[offset + 0]) | //red
                 (buffer[offset + 1]) << 8 | //green
                 (buffer[offset + 2]) << 16);//blue
             return a;
@@ -297,7 +319,7 @@ namespace SoupSoftware.FindSpace
                 int val = mask[x, y];
                 //sum the number of non 0 cells in a row store in 'x' matrix
                 runval = val == 0 ? 0 : val + runval;
-                int saveval = (runval < stampwidth) ? 0 : runval;
+                int saveval = runval;//(runval < stampwidth) ? 0 : runval;
                 maskvalsx[x, y] = saveval;
             }
         }
@@ -306,8 +328,8 @@ namespace SoupSoftware.FindSpace
         {
             int rowSum = 0;
             for (int x = WorkArea.Right; x >= WorkArea.Left; x--)
-                rowSum += (1 - mask[x,y]);
-            
+                rowSum += (1 - mask[x, y]);
+
             return rowSum;
         }
 
@@ -333,7 +355,7 @@ namespace SoupSoftware.FindSpace
             {
                 int val = mask[x, y];
                 runval = val == 0 ? 0 : val + runval;
-                int saveval = (runval < stampheight) ? 0 : runval;
+                int saveval = runval;//(runval < stampheight) ? 0 : runval;
                 maskvalsy[x, y] = saveval;
             }
 
@@ -348,6 +370,6 @@ namespace SoupSoftware.FindSpace
             return sum;
         }
 
-        
+
     }
 }

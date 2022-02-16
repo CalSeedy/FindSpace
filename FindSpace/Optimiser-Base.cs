@@ -23,9 +23,9 @@ namespace SoupSoftware.FindSpace.Optimisers
                   YAxisResolver.GetOptimisedPositions(rect.Top, rect.Bottom)))
             {
                 yield return p;
-//#if (DEBUG)
-//                Trace.TraceInformation(p.X + "," + p.Y);
-//#endif
+                //#if (DEBUG)
+                //                Trace.TraceInformation(p.X + "," + p.Y);
+                //#endif
             }
         }
         public abstract IPointGenerator pointGenerator { get; }
@@ -59,9 +59,9 @@ namespace SoupSoftware.FindSpace.Optimisers
         public IEnumerable<Point> GetOptimisedPoints(IEnumerable<int> xcoords, IEnumerable<int> ycoords)
         {
 
-            foreach (int y in ycoords)
+            foreach (int x in xcoords)
             {
-                foreach (int x in xcoords)
+                foreach (int y in ycoords)
                 {
                     yield return new Point(x, y);
                 }
@@ -97,7 +97,7 @@ namespace SoupSoftware.FindSpace.Optimisers
                 do
                 {
 
-                   // Trace.TraceInformation(string.Format("{0},{1}", new string[] { x.ToString(), y.ToString() }));
+                    // Trace.TraceInformation(string.Format("{0},{1}", new string[] { x.ToString(), y.ToString() }));
                     yield return new Point(x, y);
                     x = x - xStep;
                     y = y + yStep;
@@ -136,9 +136,9 @@ namespace SoupSoftware.FindSpace.Optimisers
         public IEnumerable<Point> GetOptimisedPoints(IEnumerable<int> xcoords, IEnumerable<int> ycoords)
         {
 
-            foreach (int x in xcoords)
+            foreach (int y in ycoords)
             {
-                foreach (int y in ycoords)
+                foreach (int x in xcoords)
                 {
                     yield return new Point(x, y);
                 }

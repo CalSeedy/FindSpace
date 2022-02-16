@@ -64,7 +64,26 @@ namespace FindSpaceTests
             Assert.AreEqual(dims[0] * dims[1], p.Distinct().Count());
         }
 
+        [TestMethod]
+        public void YieldContinuityTests()
+        {
+            MiddleRightOptimiser mropt = new MiddleRightOptimiser();
+            Rectangle r = new Rectangle(0, 0, 10, 10);
+            List<Point> ps = new List<Point>();
+            int ctr = 0;
+            foreach (Point p in mropt.GetOptimisedPoints(r))
+            {
+                ps.Add(p);
+                if (ctr == 2) { break; }
+                ctr++;
+            }
 
-
+            foreach (Point p in mropt.GetOptimisedPoints(r))
+            {
+                ps.Add(p);
+                if (ctr == 4) { break; }
+                ctr++;
+            }
+        }
     }
 }

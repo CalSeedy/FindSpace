@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace SoupSoftware.FindSpace
 {
-    class OptimisedSearch : IDeepSearch
+    public class OptimisedSearch : IDeepSearch
     {
         public int Search(ISearchMatrix masks, int Left, int Top, int Width, int Height)
         {
@@ -32,6 +32,6 @@ namespace SoupSoftware.FindSpace
             return res;
         }
 
-       
+
     }
 }
