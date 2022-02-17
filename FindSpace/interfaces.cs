@@ -26,8 +26,7 @@ namespace SoupSoftware.FindSpace.Interfaces
 
     public interface iMargin
     {
-
-        bool AutoExpand { get;  }
+        bool AutoExpand { get; }
         int Left { get; }
         int Right { get; }
         int Top { get; }
@@ -36,17 +35,24 @@ namespace SoupSoftware.FindSpace.Interfaces
         void FromRect(Rectangle rect);
     }
 
+    public interface IAutoMargin : iMargin
+    {
+        bool Resized { get; }
+
+        void Resize(searchMatrix masks);
+    }
+
     public interface ISearchMatrix {
 
-         byte[,] mask { get;  }
-         int[,] maskvalsx { get;  }
-         int[,] maskvalsy { get;  }
-         int[,] deepCheck { get; }
-         int[] colSums { get; }
-         int[] rowSums { get;  }
-         bool maskCalculated { get;}
-        void CalculateMask(int stampwidth, int stampheight, Rectangle WorkArea);
+        byte[,] mask { get;  }
+        int[,] maskvalsx { get;  }
+        int[,] maskvalsy { get;  }
+        int[,] deepCheck { get; }
+        int[] colSums { get; }
+        int[] rowSums { get;  }
+        void CalculateMask();
+        void UpdateMask(int stampwidth, int stampheight, Rectangle WorkArea);
 
-            }
+    }
 }
 

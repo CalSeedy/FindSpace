@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace SoupSoftware.FindSpace
 {
-    public class AutomaticMargin : iMargin
+    public class AutomaticMargin : IAutoMargin
     {
         public AutomaticMargin()
         {
@@ -41,24 +41,29 @@ namespace SoupSoftware.FindSpace
                 throw new IndexOutOfRangeException("The margins are larger than the image");
             }
 
-            return new Rectangle(Left, Top, masks.mask.GetUpperBound(0) - (Left + Right), masks.mask.GetUpperBound(1) - (Top + Bottom));
+            if (!Resized)
+            {
+                Resize(masks);
+                masks.MarkMask(new Rectangle(Left, Top, masks.Width - (Left + Right), masks.Height - (Top + Bottom)));
+            }
+            return new Rectangle(Left, Top, masks.Width - (Left + Right), masks.Height - (Top + Bottom));
         }
 
-        public void Resize(searchMatrix mask, float filter = -1)
+        // Would be preferred to be private - but no private interface methods
+        // This should only be called in this class
+        public void Resize(searchMatrix mask)
         {
-            if (!mask.maskCalculated)                // no point if there is no mask to use
-                return;
 
             bool sumsArentZeros = mask.rowSums.Any(x => x > 0) && mask.colSums.Any(x => x > 0);
             if (!sumsArentZeros)                // false == just an array of zeros, use original margins
-                return;
+                Resized = true; return;
 
-            if (filter < 0)
-            {
-                // we want to auto calc a filter
-                // use 10% of max-min as cutoff
-                filter = (Math.Max(mask.rowSums.Max(), mask.colSums.Max()) - Math.Min(mask.rowSums.Min(), mask.colSums.Min())) / 10f;
-            }            
+
+            // filter = 10% of the Difference between Max and Min row/col sums
+            float filter = (Math.Max(mask.rowSums.Max(), mask.colSums.Max()) - 
+                            Math.Min(mask.rowSums.Min(), mask.colSums.Min())
+                            ) * 0.05f;
+                       
 
             var ygroup = mask.colSums.Select((x, n) => new { Sum = x, idx = n })
                                 .Where(s => s.Sum >= filter)
@@ -77,7 +82,7 @@ namespace SoupSoftware.FindSpace
             Top = ymin;
             Bottom = mask.Height - ymax;
 
-            mask.MarkMask(GetworkArea(mask));
+            Resized = true;
         }
 
         public bool AutoExpand { get; set; } = false;
@@ -98,6 +103,7 @@ namespace SoupSoftware.FindSpace
 
         public int Bottom { get; set; }
 
+        public bool Resized { get; private set; }
     }
 
     public class ManualMargin : iMargin
@@ -158,7 +164,7 @@ namespace SoupSoftware.FindSpace
         private int brightness = 10;
         public int Brightness { get { return brightness; } set { brightness = value;recalcMask(); } }
 
-        public int DetectionRange { get { return (int)(brightness) / 2; } }
+        public int DetectionRange { get { return brightness / 2; } }
 
         public Color backgroundcolor = Color.Empty;
         public Color backGroundColor { 
@@ -176,27 +182,25 @@ namespace SoupSoftware.FindSpace
         {
             filterLow = calcLowFilter(backgroundcolor.ToArgb(), brightness);
             filterHigh = calcHighFilter(backgroundcolor.ToArgb(), brightness);
-
         }
 
-        public int calcLowFilter(int color,int input)
+        public int calcLowFilter(int color, int input)
         {
-         int colsum=  (color & 0xFF) + ((color & 0xFF00) >> 8) + ((color & 0xFF0000) >> 16);
+         int colsum = (color & 0xFF) + ((color & 0xFF00) >> 8) + ((color & 0xFF0000) >> 16);
             int fl;
                
             switch (colsum)
             {
-                case var expression when colsum < input:
+                case var _ when colsum < input:
                     fl = 0;
-                    
-                        break;
-                case var expression when colsum  > 3 * byte.MaxValue - input:
-                   
+                    break;
+
+                case var _ when colsum  > 3 * byte.MaxValue - input:
                     fl = 3 * byte.MaxValue - input;
                     break;
+
                 default:
-                    fl = (int)(colsum - input / 2);
-                   
+                    fl = colsum - input / 2;
                     break;
 
             }
@@ -211,17 +215,16 @@ namespace SoupSoftware.FindSpace
 
             switch (colsum)
             {
-                case var expression when colsum < input:
+                case var _ when colsum < input:
                     fl = input;
-
                     break;
-                case var expression when colsum > (3 * byte.MaxValue - input):
 
+                case var _ when colsum > (3 * byte.MaxValue - input):
                     fl = 3 * byte.MaxValue ;
                     break;
-                default:
-                    fl = (int)(colsum + input / 2);
 
+                default:
+                    fl = colsum + input / 2;
                     break;
 
             }
@@ -236,12 +239,9 @@ namespace SoupSoftware.FindSpace
 
         public IDeepSearch SearchAlgorithm { get; set; } = new ExactSearch();
 
-
-
         public int Padding { get; set; } = 2;
 
         public iMargin Margins { get; set; } = new ManualMargin(10, 10, 10, 10);
-
 
         public bool AutoRotate { get; set; }
 

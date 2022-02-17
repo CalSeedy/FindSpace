@@ -8,6 +8,10 @@ namespace WhitSpace.Results
     {
         private Rectangle scanarea;
         public bool containsResults { get; set; } = false;
+
+        public int StampWidth { get; set; } = 0;
+        public int StampHeight { get; set; } = 0;
+
         public FindResults(int width, int height, Rectangle scanArea)
         {
             possibleMatches = new int[width, height];

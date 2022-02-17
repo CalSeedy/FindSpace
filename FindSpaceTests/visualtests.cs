@@ -1,4 +1,7 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿#define MASKS
+//#define CSVS
+
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -183,15 +186,26 @@ namespace FindSpaceTests
         }
 
         [DataTestMethod]
-        [DataRow("TestImages/Test-Real4.bmp", typeof(MiddleRightOptimiser))]
-        //[DynamicData(nameof(GetTestData), DynamicDataSourceType.Method)]
+        //[DataRow("TestImages/Test-Real4.bmp", typeof(BottomRightOptimiser))]
+        [DynamicData(nameof(GetTestData), DynamicDataSourceType.Method)]
         public void MultipleStampsTest(string testfilepath, Type type)
         {
-            Rectangle[] stamps = new Rectangle[3];
-            stamps[0] = new Rectangle(0, 0, 50, 50);
-            stamps[1] = new Rectangle(0, 0, 75, 50);
-            stamps[2] = new Rectangle(0, 0, 50, 75);
-
+            Random rand = new Random();
+            int randStampsNum =rand.Next(2, 6); // 2-5 stamps to choose
+            Rectangle[] stamps = new Rectangle[randStampsNum];
+            for (int i = 0; i < randStampsNum; i++)
+            {
+                int sW;
+                int sH;
+                do {
+                    sW = rand.Next(30, 101);
+                } while (sW < 30);
+                do
+                {
+                    sH = rand.Next(30, 101);
+                } while (sH < 0);
+                stamps[i] = new Rectangle(0, 0, sW, sH);
+            }
             Bitmap b = CreateBitmap(testfilepath);
             SoupSoftware.FindSpace.Interfaces.IOptimiser optimiser;
 
@@ -212,39 +226,54 @@ namespace FindSpaceTests
             SoupSoftware.FindSpace.WhiteSpaceFinder w = new SoupSoftware.FindSpace.WhiteSpaceFinder(b, wsf);
             sw.Stop();
             Trace.WriteLine("Init Image " + sw.ElapsedMilliseconds + " ms");
-            //Rectangle stamp = new Rectangle(0, 0, 60, 60);
             sw.Reset();
             sw.Start();
             string extension = System.IO.Path.GetExtension(testfilepath);
-            Rectangle?[] rs = w.FindSpaceFor(stamps, testfilepath.Replace(extension, "-BEFORE" + extension));
+#if MASKS || CSVS
+            Rectangle[] rs = w.FindSpaceFor(stamps, testfilepath);
+#else
+            Rectangle[] rs = w.FindSpaceFor(stamps);
+#endif
             sw.Stop();
             Trace.WriteLine("Find Image " + sw.ElapsedMilliseconds + " ms");
-            //string maskFile = testfilepath.Replace(extension, optimiser.GetType().Name + "-mask" + extension);
-            //w.MaskToBitmap(maskFile);
-            w.MaskToCSV(testfilepath.Replace(extension, "-AFTER" + extension));
-            Assert.IsTrue(!rs.Contains(null));
+            
+            //w.MaskToCSV(testfilepath.Replace(extension, "-AFTER" + extension));
+            
             if (rs != null)
             {
                 Graphics g = System.Drawing.Graphics.FromImage(b);
-                foreach (Rectangle? r in rs)
+                foreach (Rectangle r in rs)
                     if (r != null)
-                        g.FillRectangle(Brushes.Red, r.Value);
+                        g.FillRectangle(new SolidBrush(Color.FromArgb(127, 255, 0, 0)), r);
 
                 int x = w.Settings.Margins.Left, y = w.Settings.Margins.Top;
                 int width = (b.Width - x - w.Settings.Margins.Right);
                 int height = (b.Height - y - w.Settings.Margins.Bottom);
                 g.DrawRectangle(Pens.Blue, new Rectangle(x, y, width, height));
                 g.Flush();
-                //        Console.WriteLine(optimiser.GetType().Name + sw.ElapsedMilliseconds / 1000);
                 extension = System.IO.Path.GetExtension(testfilepath);
                 string filepath = testfilepath.Replace(extension, optimiser.GetType().Name + "-Multiple" + extension);
                 b.Save(filepath);
 
                 g.Dispose();
-                b.Dispose();
             }
+            var perms = Extensions.GetPermutations(rs, 2);  //.Where(x=> x.First() != x.Last());
+            Assert.IsFalse(perms.Any(x => x.First().IntersectsWith(x.Last())));
+            Assert.IsFalse(rs.Any(x => x.Left < 0 || x.Top < 0 || x.Bottom > b.Height || x.Right > b.Width));
+            b.Dispose();
         }
     }
 
+    public class Extensions
+    {
+
+        public static IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> list, int length)
+        {
+            if (length == 1) return list.Select(t => new T[] { t });
+            return GetPermutations(list, length - 1)
+                       .SelectMany(t => list.Where(o => !t.Contains(o)),
+                                    (t1, t2) => t1.Concat(new T[] { t2 }));
+        }
+    }
 }
 

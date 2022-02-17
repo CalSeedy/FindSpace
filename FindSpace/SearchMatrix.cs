@@ -74,16 +74,17 @@ namespace SoupSoftware.FindSpace
 
         public searchMatrix(Bitmap image, WhitespacerfinderSettings settings)
         {
-            mask = new byte[image.Width, image.Height];
-            maskvalsx = new int[image.Width, image.Height];
-            maskvalsy = new int[image.Width, image.Height];
-            colSums = new int[image.Height];
-            rowSums = new int[image.Width];
             Image = image;
+            Settings = settings;
             Width = Image.Width;
             Height = Image.Height;
-            Settings = settings;
+            mask = new byte[Width + 1, Height + 1];
+            maskvalsx = new int[Width + 1, Height + 1];
+            maskvalsy = new int[Width + 1, Height + 1];
+            colSums = new int[Height + 1];
+            rowSums = new int[Width + 1];
 
+            CalculateMask();
         }
         public byte[,] mask { get; private set; }
         public int[,] maskvalsx { get; private set; }
@@ -91,49 +92,38 @@ namespace SoupSoftware.FindSpace
         public int[,] deepCheck { get; private set; }
         public int[] colSums { get; private set; }
         public int[] rowSums { get; private set; }
-        public bool maskCalculated { get; private set; } = false;
-        public void CalculateMask(int stampwidth, int stampheight, Rectangle WorkArea)
+        public int Width { get; private set; }
+        public int Height { get; private set; }
+
+        public void CalculateMask()
         {
             if (Settings.backGroundColor == Color.Empty)
             {
-
                 Settings.backGroundColor = GetModalColor();
-
             }
 
-            if (!maskCalculated)
+            // Generate mask values based on pixel values
+            GetBitmapData(out int depth, out byte[] buffer);
+            int stride = Width * depth;
+
+            Parallel.For(0, Width, x =>
             {
-                // Generate mask values based on pixel values
-                int depth;
-                byte[] buffer;
-                GetBitmapData(out depth, out buffer);
-
-                Parallel.For(0, Width, x =>
+                for (int y = 0; y < Height; y++)
                 {
-                    for (int y = 0; y < Height; y++)
-                    {
-                        uint col = Getbitval(buffer, (y * Width + x) * depth);
+                    uint col = Getbitval(buffer, (y * stride) + (x * depth));
 
-                        mask[x, y] = (Settings.filterHigh >= col && col >= Settings.filterLow) ? (byte)1 : (byte)0;
+                    mask[x, y] = (Settings.filterHigh >= col && col >= Settings.filterLow) ? (byte)1 : (byte)0;
 
-                    }
-                });
-                maskCalculated = true;
-            }
-
-            UpdateMask(stampwidth, stampheight, WorkArea);
+                }
+            });            
 
         }
 
 
+        private readonly Bitmap Image;
+        
 
-        private Bitmap Image;
-        public int Width;
-        public int Height;
-
-        WhitespacerfinderSettings Settings;
-
-        private Color backColor { get; set; }
+        readonly WhitespacerfinderSettings Settings;
 
         // Update mask to mark everything outside of workarea as occupied
         public void MarkMask(Rectangle WorkArea)
@@ -141,11 +131,13 @@ namespace SoupSoftware.FindSpace
             // Set value for columns past the bounds
             Parallel.For(0, Height, y =>
             {
+                // Left of image to Left of WorkArea
                 for (int x = 0; x < WorkArea.Left; x++)
                 {
                     mask[x, y] = 0;
                 }
 
+                // Right of WorkArea to Right of image
                 for (int x = WorkArea.Right; x < Width; x++)
                 {
                     mask[x, y] = 0;
@@ -155,11 +147,13 @@ namespace SoupSoftware.FindSpace
             // set value for rows between the bounds and previously set columns
             Parallel.For(WorkArea.Left, WorkArea.Right, x =>
             {
+                // Top of image to Top of WorkArea
                 for (int y = 0; y < WorkArea.Top; y++)
                 {
                     mask[x, y] = 0;
                 }
 
+                // Bottom of WorkArea to Bottom of image
                 for (int y = WorkArea.Bottom; y < Height; y++)
                 {
                     mask[x, y] = 0;
@@ -169,22 +163,20 @@ namespace SoupSoftware.FindSpace
 
         public List<Rectangle> Stamps = new List<Rectangle>();
 
-        public void AddStampToMask(Rectangle? area)
+        public void AddStampToMask(Rectangle area)
         {
-            if (area is null)
-                return;
+            Stamps.Add(area);
 
-
-            Stamps.Add(area.Value);
-
-            if (area.Value.Bottom > Height || area.Value.Right > Width)  // we have a rotated rect
+            // if any part of the stamp is outside of image borders
+            if (area.Bottom > Height || area.Right > Width || area.Left < 0 || area.Top < 0)
             {
-                area = new Rectangle(area.Value.X - area.Value.Width, area.Value.Y - area.Value.Height, area.Value.Width, area.Value.Height);
+                throw new ArgumentException($"Rectangle (X={area.X},Y={area.Y}, W={area.Width}, H={area.Height})" +
+                    $" outside of image bounds ({Image.Width},{Image.Height})");
             }
 
-            for (int x = area.Value.Left; x < area.Value.Right; x++)
+            for (int x = area.Left - 1; x < area.Right; x++)
             {
-                for (int y = area.Value.Top; y < area.Value.Bottom; y++)
+                for (int y = area.Top - 1; y < area.Bottom; y++)
                 {
                     mask[x, y] = 0;
                 }
@@ -199,30 +191,27 @@ namespace SoupSoftware.FindSpace
 
         private Color GetModalColor()
         {
-            const ulong sumMask = ulong.MaxValue - UInt32.MaxValue;
+            const ulong sumMask = UInt64.MaxValue - UInt32.MaxValue;
             const ulong colorMask = UInt32.MaxValue;
-            const ulong coarseFilterMask = 0xF7F7F7;
-            int depth;
-            byte[] buffer;
-            GetBitmapData(out depth, out buffer);
-            int len = buffer.Length / depth;
+            const ulong coarseFilterMask = 0xF7F7F7;                // TODO: adaptive coarseFilter based on max brightness
+
+            GetBitmapData(out int depth, out byte[] buffer);
+            int len = Width * Height;
             ulong[] RoundCol = new ulong[len];
 
             Parallel.For(0, len, (i) => {
-                //todo: write new function below does not work.
+                // get colour sum and value in the form XXXXXXXX00YYYYYY
+                // where Xs are sum bytes, and Ys are colour value bytes (expected just RGB)
                 RoundCol[i] = GetbitvalColorlong(buffer, i * depth);
 
             });
 
-
-
             IEnumerable<IGrouping<ulong, ulong>> colorGroups = RoundCol.GroupBy(d => d & colorMask); //group based on color as int
             ulong modalColor = colorGroups.OrderBy(g => g.Count()).Last().First(); //most occouring Color
 
-            int maskheight = (int)((modalColor & sumMask) >> 32);
             //cutoff filter (fine based on sum of components)
-            ulong highColRange = ((ulong)Settings.calcHighFilter((int)modalColor, Settings.DetectionRange)) << 32;
-            ulong lowcolRange = ((ulong)Settings.calcLowFilter((int)modalColor, Settings.DetectionRange)) << 32;
+            ulong highColRange = ((ulong)Settings.calcHighFilter((int)(modalColor & colorMask), Settings.DetectionRange)) << 32;
+            ulong lowcolRange = ((ulong)Settings.calcLowFilter((int)(modalColor & colorMask), Settings.DetectionRange)) << 32;
 
             if ((((modalColor & sumMask) >> 32) > (ulong)(765 - Settings.Brightness)))
                 return Color.White;
@@ -230,9 +219,9 @@ namespace SoupSoftware.FindSpace
 
             //the below filters colors which have close sum of RGBs to the modal color (could be a completly diff color but very close sum)
             ulong[] colorGroupsRefined = colorGroups.Where(g =>
-            (highColRange >= (g.First() & sumMask)) &&
-            (lowcolRange <= (g.First() & sumMask))
-            ).Select(h => h.First()).ToArray();
+                (highColRange >= (g.First() & sumMask)) &&          // check if sum is between upper and lower limits
+                (lowcolRange <= (g.First() & sumMask)))
+                                                    .Select(h => h.First()).ToArray();
 
             //the below filters colors which have close RGBs i.e. only similar colors.
             ulong[] cols = colorGroupsRefined.Where(x => {
@@ -276,11 +265,16 @@ namespace SoupSoftware.FindSpace
 
         private void GetBitmapData(out int depth, out byte[] buffer)
         {
-            BitmapData data = Image.LockBits(new Rectangle(0, 0, Image.Width, Image.Height), ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
+            BitmapData data = Image.LockBits(new Rectangle(0, 0, Image.Width, Image.Height), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
             IntPtr ptr = data.Scan0;
             depth = Bitmap.GetPixelFormatSize(data.PixelFormat) / 8;
-            buffer = new byte[data.Stride * Image.Height];
-            System.Runtime.InteropServices.Marshal.Copy(ptr, buffer, 0, buffer.Length);
+            buffer = new byte[data.Width * data.Height * depth];
+            for (int y = 0; y < data.Height; y++)
+            {
+                IntPtr mem = ptr + y * data.Stride;                                     // set scanline ptr to current row
+                Marshal.Copy(mem, buffer, y * data.Width * depth, data.Width * depth);  // copy bytes we want, ignoring any buffer bytes
+            }
+            //System.Runtime.InteropServices.Marshal.Copy(ptr, buffer, 0, buffer.Length);
             //RGB[] f =  sRGB.Deserialize<RGB[]>(buffer)
             Image.UnlockBits(data);
         }
@@ -288,7 +282,6 @@ namespace SoupSoftware.FindSpace
 
         uint Getbitval(byte[] buffer, int offset)
         {
-
             uint a = (uint)(buffer[offset + 0] + buffer[offset + 1] + buffer[offset + 2]);
             return a;
         }
@@ -327,7 +320,7 @@ namespace SoupSoftware.FindSpace
         private int CalculateRowSum(int y, Rectangle WorkArea)
         {
             int rowSum = 0;
-            for (int x = WorkArea.Right; x >= WorkArea.Left; x--)
+            for (int x = WorkArea.Right - 1; x >= WorkArea.Left; x--)
                 rowSum += (1 - mask[x, y]);
 
             return rowSum;
