@@ -56,8 +56,10 @@ namespace SoupSoftware.FindSpace
 
             bool sumsArentZeros = mask.rowSums.Any(x => x > 0) && mask.colSums.Any(x => x > 0);
             if (!sumsArentZeros)                // false == just an array of zeros, use original margins
-                Resized = true; return;
-
+            {
+                Resized = true; 
+                return;
+            }
 
             // filter = 10% of the Difference between Max and Min row/col sums
             float filter = (Math.Max(mask.rowSums.Max(), mask.colSums.Max()) - 
@@ -243,7 +245,7 @@ namespace SoupSoftware.FindSpace
 
         public iMargin Margins { get; set; } = new ManualMargin(10, 10, 10, 10);
 
-        public bool AutoRotate { get; set; }
+        public bool AutoRotate { get; set; } = true;
 
         public int CutOffVal { get; } = 3 * byte.MaxValue;
 
@@ -255,7 +257,7 @@ namespace SoupSoftware.FindSpace
 
     public interface IDeepSearch
     {
-        int Search(ISearchMatrix masks, int Left, int Top, int Width, int Height);
+        int Search(searchMatrix masks, int Left, int Top, int Width, int Height);
     }
 
 }

@@ -78,13 +78,18 @@ namespace SoupSoftware.FindSpace
             Settings = settings;
             Width = Image.Width;
             Height = Image.Height;
-            mask = new byte[Width + 1, Height + 1];
-            maskvalsx = new int[Width + 1, Height + 1];
-            maskvalsy = new int[Width + 1, Height + 1];
-            colSums = new int[Height + 1];
-            rowSums = new int[Width + 1];
+            mask = new byte[Width, Height];
+            maskvalsx = new int[Width, Height];
+            maskvalsy = new int[Width, Height];
+            colSums = new int[Width];
+            rowSums = new int[Height];
 
             CalculateMask();
+
+            // need to calculate sums for whole image to allow for AutoResizing after init
+            Rectangle wa = new Rectangle(0, 0, Width, Height);
+            Parallel.For(0, Width, x => colSums[x] = CalculateColSum(x, wa));
+            Parallel.For(0, Height, y => rowSums[y] = CalculateRowSum(y, wa));
         }
         public byte[,] mask { get; private set; }
         public int[,] maskvalsx { get; private set; }
@@ -357,7 +362,7 @@ namespace SoupSoftware.FindSpace
         private int CalculateColSum(int x, Rectangle WorkArea)
         {
             int sum = 0;
-            for (int y = WorkArea.Bottom; y >= WorkArea.Top; y--)
+            for (int y = WorkArea.Bottom - 1; y >= WorkArea.Top; y--)
                 sum += (1 - mask[x, y]);
 
             return sum;

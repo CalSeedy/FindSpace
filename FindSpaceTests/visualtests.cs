@@ -1,6 +1,6 @@
 ﻿#define MASKS
 //#define CSVS
-
+//#define RANDOM
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
@@ -186,10 +186,11 @@ namespace FindSpaceTests
         }
 
         [DataTestMethod]
-        //[DataRow("TestImages/Test-Real4.bmp", typeof(BottomRightOptimiser))]
-        [DynamicData(nameof(GetTestData), DynamicDataSourceType.Method)]
+        [DataRow("TestImages/Test-Real3.bmp", typeof(BottomRightOptimiser))]
+        //[DynamicData(nameof(GetTestData), DynamicDataSourceType.Method)]
         public void MultipleStampsTest(string testfilepath, Type type)
         {
+#if RANDOM
             Random rand = new Random();
             int randStampsNum =rand.Next(2, 6); // 2-5 stamps to choose
             Rectangle[] stamps = new Rectangle[randStampsNum];
@@ -206,6 +207,16 @@ namespace FindSpaceTests
                 } while (sH < 0);
                 stamps[i] = new Rectangle(0, 0, sW, sH);
             }
+#else
+            Rectangle[] stamps = new Rectangle[] {
+                new Rectangle(0,0,50,50),
+                new Rectangle(0,0,75,50),
+                new Rectangle(0,0,40,100),
+                new Rectangle(0,0,41,54),
+                new Rectangle(0,0,84,35),
+                new Rectangle(0,0,59,72)
+            };
+#endif
             Bitmap b = CreateBitmap(testfilepath);
             SoupSoftware.FindSpace.Interfaces.IOptimiser optimiser;
 
@@ -219,7 +230,6 @@ namespace FindSpaceTests
 
             wsf.backGroundColor = Color.Empty;
             wsf.Margins = new AutomaticMargin();
-            // wsf.Brightness = 1;
             wsf.SearchAlgorithm = new SoupSoftware.FindSpace.ExactSearch();
             Stopwatch sw = new Stopwatch();
             sw.Start();

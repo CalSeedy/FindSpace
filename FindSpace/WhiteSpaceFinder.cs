@@ -26,18 +26,8 @@ namespace SoupSoftware.FindSpace
 
         }
 
-        public WhiteSpaceFinder(Bitmap orig)
-        {
-
-
-            using (Bitmap newBmp = new Bitmap(orig))
-            {
-                image = newBmp.Clone(new Rectangle(0, 0, newBmp.Width, newBmp.Height), PixelFormat.Format24bppRgb);
-            }
-
-            Settings = new WhitespacerfinderSettings();
-            init(image);
-        }
+        public WhiteSpaceFinder(Bitmap orig) => new WhiteSpaceFinder(orig, new WhitespacerfinderSettings());
+        
         public WhiteSpaceFinder(Bitmap Image, WhitespacerfinderSettings settings)
         {
             using (Bitmap newBmp = new Bitmap(Image))
@@ -73,11 +63,11 @@ namespace SoupSoftware.FindSpace
             foreach (Rectangle stamp in stamps)
             {
                 Rectangle res = FindSpaceFor(stamp, filename, count);
-                if (res.Width != stamp.Width || res.Height != stamp.Height)
-                    res = new Rectangle(res.X, res.Y, stamp.Width, stamp.Height);
+                //if (res.Width != stamp.Width || res.Height != stamp.Height)
+                //    res = new Rectangle(res.X, res.Y, stamp.Width, stamp.Height);
 
                 masks.AddStampToMask(res);
-                masks.UpdateMask(stamp.Width, stamp.Height, WorkArea);
+                //masks.UpdateMask(stamp.Width, stamp.Height, WorkArea);
                 results.Add(res);
                 count++;
             }
@@ -99,19 +89,19 @@ namespace SoupSoftware.FindSpace
             int stampheight = stamp.Height + 2 * Settings.Padding;
 
             // subtract stamp width and height to keep the search restricted to the top left pxel of the stamp (avoids fits past the bounds of the image)
-            Rectangle TopLeftBiasedScanArea = new Rectangle(0, 0, image.Width - stampwidth , image.Height - stampheight);
-            masks.UpdateMask(stampwidth, stampheight, WorkArea);
-
-            FindResults findReturn;
-            FindResults findReturn90 = new FindResults(image.Width, image.Height, TopLeftBiasedScanArea);
+            Rectangle TopLeftBiasedScanArea = new Rectangle(WorkArea.Left, WorkArea.Top, WorkArea.Width - stampwidth , WorkArea.Height - stampheight);
+            masks.UpdateMask(stampwidth, stampheight, WorkArea);            
 
             if (Settings.Margins is IAutoMargin)
             {
                 WorkArea = Settings.Margins.GetworkArea(masks);
                 masks.UpdateMask(stampwidth, stampheight, WorkArea);
                 TopLeftBiasedScanArea = new Rectangle(WorkArea.Left, WorkArea.Top, WorkArea.Width - stampwidth, WorkArea.Height - stampheight);
+                //Trace.WriteLine($"Margins: L={Settings.Margins.Left}, T={Settings.Margins.Top}, R={Settings.Margins.Right}, B={Settings.Margins.Bottom}");
             }
-            findReturn = FindLocations(stampwidth, stampheight, masks, TopLeftBiasedScanArea);
+
+            FindResults findReturn = FindLocations(stampwidth, stampheight, masks, TopLeftBiasedScanArea);
+            FindResults findReturn90 = new FindResults(image.Width, image.Height, TopLeftBiasedScanArea);
 
             if (Settings.AutoRotate && !findReturn.hasExactMatches() && stampheight != stampwidth)
             {
@@ -128,7 +118,7 @@ namespace SoupSoftware.FindSpace
                 string dir = System.IO.Path.GetDirectoryName(filename);
                 string maskFile = filename.Replace(extension, "-mask"+ count + Settings.Optimiser.GetType().Name + extension);
                 maskFile = maskFile.Replace(dir, dir + "\\Masks");
-                MaskToBitmap(maskFile);
+                MaskToBitmap(maskFile);//, true);
 #endif
             }
 
@@ -185,22 +175,18 @@ namespace SoupSoftware.FindSpace
 
         private Rectangle SelectBestArea(Rectangle ScanArea, FindResults findReturn, FindResults findReturn90)
         {
-            Rectangle place2 = new Rectangle(0, 0, findReturn.StampWidth, findReturn.StampHeight);
-            if (findReturn.hasExactMatches())
+            Rectangle place2 = new Rectangle(WorkArea.Left, WorkArea.Top, findReturn.StampWidth, findReturn.StampHeight);
+            FindResults target = findReturn.minValue <= findReturn90.minValue ? findReturn : findReturn90;
+            if (target.hasExactMatches())
             {
-                place2 = findReturn.exactMatches.First();
-            }
-            else if (findReturn90.hasExactMatches())
-            {
-                place2 = findReturn90.exactMatches.First();
+                place2 = target.exactMatches.First();
             }
             else
             {
-                FindResults target = findReturn.minValue <= findReturn90.minValue ? findReturn : findReturn90;
+
                 foreach (Point p in this.Settings.Optimiser.GetOptimisedPoints(ScanArea))
                 {
-                    if (target.possibleMatches[p.X, p.Y] == target.minValue &&
-                        (!masks.Stamps.Any(r => (r.Left <= p.X && p.X <= r.Right) && (r.Top <= p.Y && p.Y <= r.Bottom))))
+                    if (target.possibleMatches[p.X, p.Y] == target.minValue) //&& (!masks.Stamps.Any(r => r.IntersectsWith(new Rectangle(p.X, p.Y, target.StampWidth, target.StampHeight)))))
                     {
                         place2 = new Rectangle(p.X, p.Y, target.StampWidth, target.StampHeight);
                     }
@@ -348,17 +334,62 @@ namespace SoupSoftware.FindSpace
             }
         }
 
-        public void MaskToBitmap(string filepath)
+        public void MaskToBitmap(string filepath, bool runs = false)
         {
+            int LinearInterp(int start, int end, double percentage) => start + (int)Math.Round(percentage * (end - start));
+            Color ColorInterp(float percentage, Color start, Color end) =>
+                Color.FromArgb(LinearInterp(start.A, end.A, percentage),
+                               LinearInterp(start.R, end.R, percentage),
+                               LinearInterp(start.G, end.G, percentage),
+                               LinearInterp(start.B, end.B, percentage));
+            Color GradientPick(float percentage, Color Start, Color End)
+            {
+                if (percentage < 0.5)
+                    return ColorInterp(percentage / 0.5f, Start, End);
+                else
+                    return ColorInterp((percentage - 0.5f) / 0.5f, Start, End);
+            }
+
             int w = image.Width;
             int h = image.Height;
             int bpp = Image.GetPixelFormatSize(image.PixelFormat) / 8;
 
+            void WriteInts(string path, int[,] arr)
+            {
+                Bitmap bmp = new Bitmap(w, h, PixelFormat.Format24bppRgb);
+
+                BitmapData bitmapData = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+                IntPtr ptr = bitmapData.Scan0;
+
+                lock (arr)
+                {
+                    IEnumerable<int> ints = arr.Cast<int>();
+                    float max = ints.Max();
+                    float min = ints.Min();
+                    Color red = Color.FromArgb(255, 255, 0, 0);
+                    Color green = Color.FromArgb(255, 0, 255, 0);
+                    for (int j = 0; j < h; j++)
+                    {
+                        for (int i = 0; i < w; i++)
+                        {
+                            Color col = GradientPick((arr[i, j] - min) / max, red, green);
+                            System.Runtime.InteropServices.Marshal.WriteByte(ptr, (j * bitmapData.Stride) + (i * bpp) + 0, col.B);
+                            System.Runtime.InteropServices.Marshal.WriteByte(ptr, (j * bitmapData.Stride) + (i * bpp) + 1, col.G);
+                            System.Runtime.InteropServices.Marshal.WriteByte(ptr, (j * bitmapData.Stride) + (i * bpp) + 2, col.R);
+                        }
+                    }
+                }
+
+                bmp.UnlockBits(bitmapData);
+
+                bmp.Save(path);
+            }
 
             Bitmap maskBitmap = new Bitmap(w, h, PixelFormat.Format24bppRgb);
 
             BitmapData data = maskBitmap.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
-            IntPtr ptr = data.Scan0;
+            IntPtr intPtr = data.Scan0;
+
 
             lock (masks.mask)
             {
@@ -367,16 +398,24 @@ namespace SoupSoftware.FindSpace
                     for (int j = 0; j < h; j++)
                     {
                         bool maskFilter = masks.mask[i, j] == 0;
-                        System.Runtime.InteropServices.Marshal.WriteByte(ptr, (j * data.Stride) + (i * bpp) + 0, 0);
-                        System.Runtime.InteropServices.Marshal.WriteByte(ptr, (j * data.Stride) + (i * bpp) + 1, maskFilter ? (byte)0 : (byte)255);
-                        System.Runtime.InteropServices.Marshal.WriteByte(ptr, (j * data.Stride) + (i * bpp) + 2, maskFilter ? (byte)255 : (byte)0);
+                        System.Runtime.InteropServices.Marshal.WriteByte(intPtr, (j * data.Stride) + (i * bpp) + 0, 0);
+                        System.Runtime.InteropServices.Marshal.WriteByte(intPtr, (j * data.Stride) + (i * bpp) + 1, maskFilter ? (byte)0 : (byte)255);
+                        System.Runtime.InteropServices.Marshal.WriteByte(intPtr, (j * data.Stride) + (i * bpp) + 2, maskFilter ? (byte)255 : (byte)0);
                     }
                 }
             }
+
             //RGB[] f = sRGB.Deserialize<RGB[]>(buffer)
             maskBitmap.UnlockBits(data);
 
             maskBitmap.Save(filepath);
+
+            if (runs)
+            {
+                WriteInts(filepath.Replace(".bmp", "-ColRuns.bmp"), masks.maskvalsy);
+
+                WriteInts(filepath.Replace(".bmp", "-RowRuns.bmp"), masks.maskvalsx);
+            }
         }
 
 

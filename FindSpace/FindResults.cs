@@ -15,6 +15,9 @@ namespace WhitSpace.Results
         public FindResults(int width, int height, Rectangle scanArea)
         {
             possibleMatches = new int[width, height];
+            for (int i = 0; i < width; i++)
+                for (int j = 0; j < height; j++)
+                    possibleMatches[i, j] = System.Int32.MaxValue;
             scanarea = scanArea;
         }
 
@@ -25,12 +28,12 @@ namespace WhitSpace.Results
         {
             return containsResults && exactMatches.Count > 0;
         }
-        private int minvalue = -1;
+        private int minvalue = System.Int32.MaxValue;
         public int minValue
         {
             get
             {
-                if (minvalue == -1)
+                if (minvalue == System.Int32.MaxValue)
                 {
                     minvalue = squareIterator(possibleMatches, scanarea).Min();
                 }

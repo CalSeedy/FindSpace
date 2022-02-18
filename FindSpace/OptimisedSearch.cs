@@ -9,7 +9,7 @@ namespace SoupSoftware.FindSpace
 {
     public class OptimisedSearch : IDeepSearch
     {
-        public int Search(ISearchMatrix masks, int Left, int Top, int Width, int Height)
+        public int Search(searchMatrix masks, int Left, int Top, int Width, int Height)
         {
 
             //counts how many zeros in a given sub array.
