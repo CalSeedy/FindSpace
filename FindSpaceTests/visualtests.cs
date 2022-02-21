@@ -186,8 +186,8 @@ namespace FindSpaceTests
         }
 
         [DataTestMethod]
-        [DataRow("TestImages/Test-Real3.bmp", typeof(BottomRightOptimiser))]
-        //[DynamicData(nameof(GetTestData), DynamicDataSourceType.Method)]
+        //[DataRow("TestImages/Test-Real3.bmp", typeof(BottomRightOptimiser))]
+        [DynamicData(nameof(GetTestData), DynamicDataSourceType.Method)]
         public void MultipleStampsTest(string testfilepath, Type type)
         {
 #if RANDOM
@@ -235,7 +235,7 @@ namespace FindSpaceTests
             sw.Start();
             SoupSoftware.FindSpace.WhiteSpaceFinder w = new SoupSoftware.FindSpace.WhiteSpaceFinder(b, wsf);
             sw.Stop();
-            Trace.WriteLine("Init Image " + sw.ElapsedMilliseconds + " ms");
+            Trace.WriteLine("Initialisation... " + sw.ElapsedMilliseconds + " ms");
             sw.Reset();
             sw.Start();
             string extension = System.IO.Path.GetExtension(testfilepath);
@@ -245,7 +245,7 @@ namespace FindSpaceTests
             Rectangle[] rs = w.FindSpaceFor(stamps);
 #endif
             sw.Stop();
-            Trace.WriteLine("Find Image " + sw.ElapsedMilliseconds + " ms");
+            Trace.WriteLine("Completion... " + sw.ElapsedMilliseconds + " ms");
             
             //w.MaskToCSV(testfilepath.Replace(extension, "-AFTER" + extension));
             

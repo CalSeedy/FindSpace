@@ -64,7 +64,7 @@ namespace SoupSoftware.FindSpace
             // filter = 10% of the Difference between Max and Min row/col sums
             float filter = (Math.Max(mask.rowSums.Max(), mask.colSums.Max()) - 
                             Math.Min(mask.rowSums.Min(), mask.colSums.Min())
-                            ) * 0.05f;
+                            ) * 0.025f;
                        
 
             var ygroup = mask.colSums.Select((x, n) => new { Sum = x, idx = n })

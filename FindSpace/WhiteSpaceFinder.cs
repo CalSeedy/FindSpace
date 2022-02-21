@@ -55,6 +55,9 @@ namespace SoupSoftware.FindSpace
 
         public Rectangle[] FindSpaceFor(Rectangle[] stamps, string filename = "")
         {
+#if DEBUG
+            Stopwatch sw = new Stopwatch();
+#endif
             stamps = SortStamps(stamps);
 
             List<Rectangle> results = new List<Rectangle>();
@@ -62,6 +65,9 @@ namespace SoupSoftware.FindSpace
             int count = 0;
             foreach (Rectangle stamp in stamps)
             {
+#if DEBUG
+                sw.Restart();
+#endif
                 Rectangle res = FindSpaceFor(stamp, filename, count);
                 //if (res.Width != stamp.Width || res.Height != stamp.Height)
                 //    res = new Rectangle(res.X, res.Y, stamp.Width, stamp.Height);
@@ -70,6 +76,9 @@ namespace SoupSoftware.FindSpace
                 //masks.UpdateMask(stamp.Width, stamp.Height, WorkArea);
                 results.Add(res);
                 count++;
+#if TRACE
+                Trace.WriteLine($"Stamp #{count} Found... {sw.ElapsedMilliseconds} ms");
+#endif
             }
 
 
@@ -97,31 +106,38 @@ namespace SoupSoftware.FindSpace
                 WorkArea = Settings.Margins.GetworkArea(masks);
                 masks.UpdateMask(stampwidth, stampheight, WorkArea);
                 TopLeftBiasedScanArea = new Rectangle(WorkArea.Left, WorkArea.Top, WorkArea.Width - stampwidth, WorkArea.Height - stampheight);
-                //Trace.WriteLine($"Margins: L={Settings.Margins.Left}, T={Settings.Margins.Top}, R={Settings.Margins.Right}, B={Settings.Margins.Bottom}");
+#if TRACE
+                Trace.WriteLine($"Margins: L={Settings.Margins.Left}, T={Settings.Margins.Top}, R={Settings.Margins.Right}, B={Settings.Margins.Bottom}");
+#endif
             }
 
             FindResults findReturn = FindLocations(stampwidth, stampheight, masks, TopLeftBiasedScanArea);
             FindResults findReturn90 = new FindResults(image.Width, image.Height, TopLeftBiasedScanArea);
-
+#if DEBUG && POSSIBLES
+            findReturn.PossiblesToBitmap($"TestImages\\Possibles\\{count}-findReturn.bmp");
+#endif
             if (Settings.AutoRotate && !findReturn.hasExactMatches() && stampheight != stampwidth)
             {
                 findReturn90 = FindLocations(stampheight, stampwidth, masks, TopLeftBiasedScanArea);
+#if DEBUG && POSSIBLES
+            findReturn90.PossiblesToBitmap($"TestImages\\Possibles\\{count}-findReturn90.bmp");
+#endif
             }
-
+#if DEBUG
             if (filename.Length > 0)
             {
                 string extension = System.IO.Path.GetExtension(filename);
-#if (CSVS)
+    #if (CSVS)
                 MaskToCSV(filename.Replace(extension, $"-{count}{extension}"));
-#endif
-#if (MASKS)
+    #endif
+    #if (MASKS)
                 string dir = System.IO.Path.GetDirectoryName(filename);
                 string maskFile = filename.Replace(extension, "-mask"+ count + Settings.Optimiser.GetType().Name + extension);
                 maskFile = maskFile.Replace(dir, dir + "\\Masks");
                 MaskToBitmap(maskFile);//, true);
-#endif
+    #endif
             }
-
+#endif
             return SelectBestArea(TopLeftBiasedScanArea, findReturn, findReturn90);
         }
 
@@ -186,39 +202,16 @@ namespace SoupSoftware.FindSpace
 
                 foreach (Point p in this.Settings.Optimiser.GetOptimisedPoints(ScanArea))
                 {
-                    if (target.possibleMatches[p.X, p.Y] == target.minValue) //&& (!masks.Stamps.Any(r => r.IntersectsWith(new Rectangle(p.X, p.Y, target.StampWidth, target.StampHeight)))))
+                    if (target.possibleMatches[p.X, p.Y] == target.minValue && (!masks.Stamps.Any(r => r.IntersectsWith(new Rectangle(p.X, p.Y, target.StampWidth, target.StampHeight)))))
                     {
                         place2 = new Rectangle(p.X, p.Y, target.StampWidth, target.StampHeight);
                     }
                 }
-                /*
-                int tmpX = WorkArea.X;
-                int tmpY = WorkArea.Y;
-                foreach (Rectangle r in masks.Stamps)
-                {
-                    if (tmpX <= r.X + r.Width + 2 * Settings.Padding)
-                        tmpX += r.Width + 2 * Settings.Padding;
-
-                    //if (tmpY <= r.Y + r.Height + 2 * Settings.Padding)
-                    //    tmpY += r.Height + 2 * Settings.Padding;
-
-                    place2 = new Rectangle(tmpX, tmpY, stampwidth, stampheight);
-                }
-                */
             }
-
-            /*
-            // account for stamps on the edge where (X, Y) + (sw, sh) > (w, h)
-            int? newX = null;
-            int? newY = null;
-            if (place2.X + stampwidth > image.Width)
-                newX = place2.X - stampwidth;
-
-            if (place2.Y + stampheight > image.Height)
-                newY = place2.Y - stampheight;
-            */
             place2 = new Rectangle(place2.X + Settings.Padding, place2.Y + Settings.Padding, place2.Width - 2 * Settings.Padding, place2.Height - 2 * Settings.Padding);
+#if TRACE
             Trace.WriteLine($"Position found: ({place2.X},{place2.Y}) : W={place2.Width}, H={place2.Height}");
+#endif
             return place2;
         }
 
@@ -239,7 +232,7 @@ namespace SoupSoftware.FindSpace
             // aswe add the loctions transposing the loction to the top left.
             foreach (Point p in this.Settings.Optimiser.GetOptimisedPoints(ScanArea))
             {
-                if (masks.maskvalsx[p.X, p.Y] > stampwidth && masks.maskvalsy[p.X, p.Y] > stampheight)
+                if (masks.maskvalsx[p.X, p.Y] >= stampwidth && masks.maskvalsy[p.X, p.Y] >= stampheight)
                 {
 
                     findReturn.possibleMatches[p.X, p.Y] = Settings.SearchAlgorithm.Search(masks,
@@ -255,7 +248,10 @@ namespace SoupSoftware.FindSpace
                                                      p.X, p.Y, stampwidth, stampheight
                                                     ));
                         //bail on first find exact macth.
-                        return findReturn;
+                        //return findReturn;
+
+                        if (findReturn.exactMatches.Count >= 5)
+                            return findReturn;
                     }
                 }
                 else

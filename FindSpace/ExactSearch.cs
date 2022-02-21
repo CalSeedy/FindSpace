@@ -20,8 +20,7 @@ namespace SoupSoftware.FindSpace
                 // stop any overlaps
                 if (masks.Stamps.Any(x => x.IntersectsWith(new System.Drawing.Rectangle(Left, Top, Width, Height))))
                 {
-                    res = System.Int32.MaxValue;
-                    return res;
+                    return System.Int32.MaxValue;
                 }
 
                 for (int a = Left; a <= Left + Width; a++)
