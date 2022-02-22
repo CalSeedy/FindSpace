@@ -41,9 +41,9 @@ namespace FindSpaceTests
         }
 
         [DataTestMethod]
-        [DataRow(typeof(circularPointGenerator), new int[] { 10, 10 })]
-        [DataRow(typeof(circularPointGenerator), new int[] { 16, 10 })]
-        [DataRow(typeof(circularPointGenerator), new int[] { 10, 16 })]
+        [DataRow(typeof(CircularPointGenerator), new int[] { 10, 10 })]
+        [DataRow(typeof(CircularPointGenerator), new int[] { 16, 10 })]
+        [DataRow(typeof(CircularPointGenerator), new int[] { 10, 16 })]
         public void CircularPointGeneratorTests(Type t, int[] dims)
         {
             List<Point> p = new List<Point>();

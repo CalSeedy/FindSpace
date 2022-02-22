@@ -80,12 +80,12 @@ namespace SoupSoftware.FindSpace
     public class Targetresolver : ICoordinateSorter
     {
 
-        private int target;
+        private readonly int Target;
 
 
-        public Targetresolver(int Target)
+        public Targetresolver(int target)
         {
-            target = Target;
+            this.Target = target;
         }
 
         public IEnumerable<int> GetOptimisedPositions(int lower, int upper)
@@ -102,11 +102,11 @@ namespace SoupSoftware.FindSpace
             int upperval;
 
             startArrayIndex = 1;
-            retval[0] = target;
-            lowerval = target - 1;
-            upperval = target + 1;
+            retval[0] = Target;
+            lowerval = Target - 1;
+            upperval = Target + 1;
 
-            int loopsMax = Math.Max(target - lower, upper - target);
+            int loopsMax = Math.Max(Target - lower, upper - Target);
 
             do
             {

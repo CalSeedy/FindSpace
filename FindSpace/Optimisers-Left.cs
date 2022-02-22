@@ -1,13 +1,13 @@
-﻿
-using SoupSoftware.FindSpace.Interfaces;
+﻿using SoupSoftware.FindSpace.Interfaces;
+
 namespace SoupSoftware.FindSpace.Optimisers
 {
 
-    public class TopLefttOptimiser : LinearPointOptimiser
+    public class TopLeftOptimiser : LinearPointOptimiser
     {
         private readonly ICoordinateSorter Lboundresolver = new LboundLinearSorter();
         private readonly IPointGenerator pointgenerator = new DiagonalPointGenerator();
-        public override IPointGenerator pointGenerator { get => pointgenerator; }
+        public override IPointGenerator PointGenerator { get => pointgenerator; }
 
         protected override ICoordinateSorter XAxisResolver { get => Lboundresolver; }
 
@@ -19,7 +19,7 @@ namespace SoupSoftware.FindSpace.Optimisers
         private readonly ICoordinateSorter Lboundresolver = new LboundLinearSorter();
         private readonly ICoordinateSorter cntrResolver = new CentreLinearSorter();
         private readonly IPointGenerator pointgenerator = new VerticalThenHorizontalSweepPointGenerator();
-        public override IPointGenerator pointGenerator { get => pointgenerator; }
+        public override IPointGenerator PointGenerator { get => pointgenerator; }
         protected override ICoordinateSorter XAxisResolver { get => Lboundresolver; }
 
         protected override ICoordinateSorter YAxisResolver { get => cntrResolver; }
@@ -31,7 +31,7 @@ namespace SoupSoftware.FindSpace.Optimisers
         private readonly ICoordinateSorter Lboundresolver = new LboundLinearSorter();
         private readonly ICoordinateSorter Uboundresolver = new UboundLinearSorter();
         private readonly IPointGenerator pointgenerator = new DiagonalPointGenerator();
-        public override IPointGenerator pointGenerator { get => pointgenerator; }
+        public override IPointGenerator PointGenerator { get => pointgenerator; }
         protected override ICoordinateSorter XAxisResolver { get => Lboundresolver; }
 
         protected override ICoordinateSorter YAxisResolver { get => Uboundresolver; }

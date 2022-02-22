@@ -1,18 +1,15 @@
-﻿using SoupSoftware.FindSpace;
-using SoupSoftware.FindSpace.Interfaces;
+﻿using SoupSoftware.FindSpace.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading.Tasks;
 
 namespace SoupSoftware.FindSpace
 {
-
+    /* Future Optimisation?
     [StructLayout(LayoutKind.Explicit)]
     public struct sRGB
     {
@@ -65,41 +62,48 @@ namespace SoupSoftware.FindSpace
         [FieldOffset(3)]
         public byte B;
     }
+    */
 
 
 
-
-    public class searchMatrix : ISearchMatrix
+    public class SearchMatrix : ISearchMatrix
     {
+        private readonly Bitmap Image;
 
-        public searchMatrix(Bitmap image, WhitespacerfinderSettings settings)
+        public byte[,] Mask { get; private set; }
+        public int[,] MaskValsX { get; private set; }
+        public int[,] MaskValsY { get; private set; }
+        public int[,] DeepCheck { get; private set; }
+        public int[] ColSums { get; private set; }
+        public int[] RowSums { get; private set; }
+        public int Width { get; private set; }
+        public int Height { get; private set; }
+
+        public readonly WhitespacerfinderSettings Settings;
+        public List<Rectangle> Stamps = new List<Rectangle>();
+
+        public SearchMatrix(Bitmap image, WhitespacerfinderSettings settings)
         {
             Image = image;
             Settings = settings;
             Width = Image.Width;
             Height = Image.Height;
-            mask = new byte[Width, Height];
-            maskvalsx = new int[Width, Height];
-            maskvalsy = new int[Width, Height];
-            colSums = new int[Width];
-            rowSums = new int[Height];
+            Mask = new byte[Width, Height];
+            MaskValsX = new int[Width, Height];
+            MaskValsY = new int[Width, Height];
+            ColSums = new int[Width];
+            RowSums = new int[Height];
 
             CalculateMask();
 
             // need to calculate sums for whole image to allow for AutoResizing after init
             Rectangle wa = new Rectangle(0, 0, Width, Height);
-            Parallel.For(0, Width, x => colSums[x] = CalculateColSum(x, wa));
-            Parallel.For(0, Height, y => rowSums[y] = CalculateRowSum(y, wa));
+            Parallel.For(0, Width, x => ColSums[x] = CalculateColSum(x, wa));
+            Parallel.For(0, Height, y => RowSums[y] = CalculateRowSum(y, wa));
         }
-        public byte[,] mask { get; private set; }
-        public int[,] maskvalsx { get; private set; }
-        public int[,] maskvalsy { get; private set; }
-        public int[,] deepCheck { get; private set; }
-        public int[] colSums { get; private set; }
-        public int[] rowSums { get; private set; }
-        public int Width { get; private set; }
-        public int Height { get; private set; }
-
+        
+        
+        
         public void CalculateMask()
         {
             if (Settings.backGroundColor == Color.Empty)
@@ -117,18 +121,12 @@ namespace SoupSoftware.FindSpace
                 {
                     uint col = Getbitval(buffer, (y * stride) + (x * depth));
 
-                    mask[x, y] = (Settings.filterHigh >= col && col >= Settings.filterLow) ? (byte)1 : (byte)0;
+                    Mask[x, y] = (Settings.filterHigh >= col && col >= Settings.filterLow) ? (byte)1 : (byte)0;
 
                 }
             });            
 
         }
-
-
-        private readonly Bitmap Image;
-        
-
-        readonly WhitespacerfinderSettings Settings;
 
         // Update mask to mark everything outside of workarea as occupied
         public void MarkMask(Rectangle WorkArea)
@@ -139,13 +137,13 @@ namespace SoupSoftware.FindSpace
                 // Left of image to Left of WorkArea
                 for (int x = 0; x < WorkArea.Left; x++)
                 {
-                    mask[x, y] = 0;
+                    Mask[x, y] = 0;
                 }
 
                 // Right of WorkArea to Right of image
                 for (int x = WorkArea.Right; x < Width; x++)
                 {
-                    mask[x, y] = 0;
+                    Mask[x, y] = 0;
                 }
             });
 
@@ -155,18 +153,18 @@ namespace SoupSoftware.FindSpace
                 // Top of image to Top of WorkArea
                 for (int y = 0; y < WorkArea.Top; y++)
                 {
-                    mask[x, y] = 0;
+                    Mask[x, y] = 0;
                 }
 
                 // Bottom of WorkArea to Bottom of image
                 for (int y = WorkArea.Bottom; y < Height; y++)
                 {
-                    mask[x, y] = 0;
+                    Mask[x, y] = 0;
                 }
             });
         }
 
-        public List<Rectangle> Stamps = new List<Rectangle>();
+        
 
         public void AddStampToMask(Rectangle area)
         {
@@ -183,7 +181,7 @@ namespace SoupSoftware.FindSpace
             {
                 for (int y = area.Top - 1; y < area.Bottom; y++)
                 {
-                    mask[x, y] = 0;
+                    Mask[x, y] = 0;
                 }
             }
         }
@@ -257,12 +255,12 @@ namespace SoupSoftware.FindSpace
         private void CalculateXVectors(int stampwidth, Rectangle WorkArea)
         {
 
-            rowSums = new int[mask.GetLength(1)];
+            RowSums = new int[Mask.GetLength(1)];
             //cycle through the pixels. Set the Mask Matrix to 1 or 0.  
 
             Parallel.For(WorkArea.Top, WorkArea.Bottom, (int i) =>
             {
-                rowSums[i] = CalculateRowSum(i, WorkArea);
+                RowSums[i] = CalculateRowSum(i, WorkArea);
                 CalculateRowRuns(i, stampwidth);
             });
 
@@ -314,11 +312,11 @@ namespace SoupSoftware.FindSpace
             int runval = 0;
             for (int x = Width - 1; x >= 0; x--)
             {
-                int val = mask[x, y];
+                int val = Mask[x, y];
                 //sum the number of non 0 cells in a row store in 'x' matrix
                 runval = val == 0 ? 0 : val + runval;
                 int saveval = runval;//(runval < stampwidth) ? 0 : runval;
-                maskvalsx[x, y] = saveval;
+                MaskValsX[x, y] = saveval;
             }
         }
 
@@ -326,7 +324,7 @@ namespace SoupSoftware.FindSpace
         {
             int rowSum = 0;
             for (int x = WorkArea.Right - 1; x >= WorkArea.Left; x--)
-                rowSum += (1 - mask[x, y]);
+                rowSum += (1 - Mask[x, y]);
 
             return rowSum;
         }
@@ -334,11 +332,11 @@ namespace SoupSoftware.FindSpace
         private void CalculateYVectors(int stampheight, Rectangle WorkArea)
         {
 
-            colSums = new int[mask.GetLength(0)];
+            ColSums = new int[Mask.GetLength(0)];
             //now reiterare as sum the number of non 0 cells in a column store in 'y' matrix, we sum from bottom up.
 
             Parallel.For(WorkArea.Left, WorkArea.Right, (x) => {
-                colSums[x] = CalculateColSum(x, WorkArea);
+                ColSums[x] = CalculateColSum(x, WorkArea);
                 CalculateColRuns(x, stampheight);
             });
 
@@ -351,10 +349,10 @@ namespace SoupSoftware.FindSpace
             int runval = 0;
             for (int y = Height - 1; y >= 0; y--)
             {
-                int val = mask[x, y];
+                int val = Mask[x, y];
                 runval = val == 0 ? 0 : val + runval;
                 int saveval = runval;//(runval < stampheight) ? 0 : runval;
-                maskvalsy[x, y] = saveval;
+                MaskValsY[x, y] = saveval;
             }
 
         }
@@ -363,7 +361,7 @@ namespace SoupSoftware.FindSpace
         {
             int sum = 0;
             for (int y = WorkArea.Bottom - 1; y >= WorkArea.Top; y--)
-                sum += (1 - mask[x, y]);
+                sum += (1 - Mask[x, y]);
 
             return sum;
         }

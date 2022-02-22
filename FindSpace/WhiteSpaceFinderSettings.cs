@@ -1,7 +1,6 @@
 ﻿using SoupSoftware.FindSpace.Interfaces;
 using SoupSoftware.FindSpace.Optimisers;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 
@@ -9,6 +8,13 @@ namespace SoupSoftware.FindSpace
 {
     public class AutomaticMargin : IAutoMargin
     {
+        public int Left { get; set; }
+        public int Right { get; set; }
+        public int Top { get; set; }
+        public int Bottom { get; set; }
+        public bool Resized { get; private set; }
+        public bool AutoExpand { get; set; } = false;
+
         public AutomaticMargin()
         {
             Left = 0;
@@ -33,10 +39,10 @@ namespace SoupSoftware.FindSpace
             Bottom = size;
         }
 
-        public Rectangle GetworkArea(searchMatrix masks)
+        public Rectangle GetWorkArea(SearchMatrix masks)
         {
-            if (masks.mask.GetUpperBound(0) - (Left + Right) < 0 ||
-                masks.mask.GetUpperBound(1) - (Top + Bottom) < 0)
+            if (masks.Mask.GetUpperBound(0) - (Left + Right) < 0 ||
+                masks.Mask.GetUpperBound(1) - (Top + Bottom) < 0)
             {
                 throw new IndexOutOfRangeException("The margins are larger than the image");
             }
@@ -51,10 +57,10 @@ namespace SoupSoftware.FindSpace
 
         // Would be preferred to be private - but no private interface methods
         // This should only be called in this class
-        public void Resize(searchMatrix mask)
+        public void Resize(SearchMatrix mask)
         {
 
-            bool sumsArentZeros = mask.rowSums.Any(x => x > 0) && mask.colSums.Any(x => x > 0);
+            bool sumsArentZeros = mask.RowSums.Any(x => x > 0) && mask.ColSums.Any(x => x > 0);
             if (!sumsArentZeros)                // false == just an array of zeros, use original margins
             {
                 Resized = true; 
@@ -62,18 +68,18 @@ namespace SoupSoftware.FindSpace
             }
 
             // filter = 10% of the Difference between Max and Min row/col sums
-            float filter = (Math.Max(mask.rowSums.Max(), mask.colSums.Max()) - 
-                            Math.Min(mask.rowSums.Min(), mask.colSums.Min())
+            float filter = (Math.Max(mask.RowSums.Max(), mask.ColSums.Max()) - 
+                            Math.Min(mask.RowSums.Min(), mask.ColSums.Min())
                             ) * 0.025f;
                        
 
-            var ygroup = mask.colSums.Select((x, n) => new { Sum = x, idx = n })
+            var ygroup = mask.ColSums.Select((x, n) => new { Sum = x, idx = n })
                                 .Where(s => s.Sum >= filter)
                                 .OrderBy(g => g.idx);
             int xmin = ygroup.First().idx;
             int xmax = ygroup.Last().idx;
 
-            var xgroup = mask.rowSums.Select((y, n) => new { Sum = y, idx = n })
+            var xgroup = mask.RowSums.Select((y, n) => new { Sum = y, idx = n })
                                 .Where(s => s.Sum >= filter)
                                 .OrderBy(g => g.idx);
             int ymin = xgroup.First().idx;
@@ -87,8 +93,6 @@ namespace SoupSoftware.FindSpace
             Resized = true;
         }
 
-        public bool AutoExpand { get; set; } = false;
-
         public void FromRect(Rectangle rect)
         {
             Left = rect.Left;
@@ -97,19 +101,17 @@ namespace SoupSoftware.FindSpace
             Bottom = rect.Bottom;
         }
 
-        public int Left { get; set; }
-
-        public int Right { get; set; }
-
-        public int Top { get; set; }
-
-        public int Bottom { get; set; }
-
-        public bool Resized { get; private set; }
+        
     }
 
-    public class ManualMargin : iMargin
+    public class ManualMargin : IMargin
     {
+        public bool AutoExpand { get; set; } = true;
+        public int Left { get; set; }
+        public int Right { get; set; }
+        public int Top { get; set; }
+        public int Bottom { get; set; }
+
         public ManualMargin(int left, int right, int top, int bottom)
         {
             Left = left;
@@ -126,15 +128,15 @@ namespace SoupSoftware.FindSpace
             Bottom = size;
         }
 
-        public Rectangle GetworkArea(searchMatrix masks)
+        public Rectangle GetWorkArea(SearchMatrix masks)
         {
-            if (masks.mask.GetUpperBound(0) - (Left + Right) < 0 ||
-                masks.mask.GetUpperBound(1) - (Top + Bottom) < 0)
+            if (masks.Mask.GetUpperBound(0) - (Left + Right) < 0 ||
+                masks.Mask.GetUpperBound(1) - (Top + Bottom) < 0)
             {
                 throw new IndexOutOfRangeException("The margins are larger than the image");
             }
 
-            return new Rectangle(Left, Top, masks.mask.GetUpperBound(0) - (Left + Right), masks.mask.GetUpperBound(1) - (Top + Bottom));
+            return new Rectangle(Left, Top, masks.Mask.GetUpperBound(0) - (Left + Right), masks.Mask.GetUpperBound(1) - (Top + Bottom));
         }
 
         public void FromRect(Rectangle rect)
@@ -144,18 +146,6 @@ namespace SoupSoftware.FindSpace
             Top = rect.Top;
             Bottom = rect.Bottom;
         }
-
-        public bool AutoExpand { get; set; } = true;
-
-
-
-        public int Left { get; set; }
-
-        public int Right { get; set; }
-
-        public int Top { get; set; }
-
-        public int Bottom { get; set; }
     }
     
   
@@ -243,7 +233,7 @@ namespace SoupSoftware.FindSpace
 
         public int Padding { get; set; } = 2;
 
-        public iMargin Margins { get; set; } = new ManualMargin(10, 10, 10, 10);
+        public IMargin Margins { get; set; } = new ManualMargin(10, 10, 10, 10);
 
         public bool AutoRotate { get; set; } = true;
 
@@ -262,7 +252,7 @@ namespace SoupSoftware.FindSpace
 
     public interface IDeepSearch
     {
-        int Search(searchMatrix masks, int Left, int Top, int Width, int Height);
+        int Search(SearchMatrix masks, int Left, int Top, int Width, int Height);
     }
 
 }

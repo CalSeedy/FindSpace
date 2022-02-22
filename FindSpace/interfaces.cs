@@ -24,32 +24,32 @@ namespace SoupSoftware.FindSpace.Interfaces
 
     }
 
-    public interface iMargin
+    public interface IMargin
     {
         bool AutoExpand { get; }
         int Left { get; }
         int Right { get; }
         int Top { get; }
         int Bottom { get; }
-        Rectangle GetworkArea(searchMatrix masks);
+        Rectangle GetWorkArea(SearchMatrix masks);
         void FromRect(Rectangle rect);
     }
 
-    public interface IAutoMargin : iMargin
+    public interface IAutoMargin : IMargin
     {
         bool Resized { get; }
 
-        void Resize(searchMatrix masks);
+        void Resize(SearchMatrix masks);
     }
 
     public interface ISearchMatrix {
 
-        byte[,] mask { get;  }
-        int[,] maskvalsx { get;  }
-        int[,] maskvalsy { get;  }
-        int[,] deepCheck { get; }
-        int[] colSums { get; }
-        int[] rowSums { get;  }
+        byte[,] Mask { get;  }
+        int[,] MaskValsX { get;  }
+        int[,] MaskValsY { get;  }
+        int[,] DeepCheck { get; }
+        int[] ColSums { get; }
+        int[] RowSums { get;  }
         void CalculateMask();
         void UpdateMask(int stampwidth, int stampheight, Rectangle WorkArea);
 

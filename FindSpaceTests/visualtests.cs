@@ -1,4 +1,4 @@
-﻿#define MASKS
+﻿//#define MASKS
 //#define CSVS
 //#define RANDOM
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -85,8 +85,10 @@ namespace FindSpaceTests
             sw.Stop();
             Trace.WriteLine("Find Image " + sw.ElapsedMilliseconds + " ms");
             string extension = System.IO.Path.GetExtension(testfilepath);
+#if MASKS
             string maskFile = testfilepath.Replace(extension, "-mask" + extension);
             w.MaskToBitmap(maskFile);
+#endif
             Assert.IsNotNull(r);
             if (r != null)
             {
@@ -177,7 +179,7 @@ namespace FindSpaceTests
             wsf.backgroundcolor = Color.Empty;
 
 
-            searchMatrix mask = new searchMatrix(b, wsf);
+            SearchMatrix mask = new SearchMatrix(b, wsf);
             PrivateObject obj = new PrivateObject(mask);
             Color Colorres = (Color)obj.Invoke("GetModalColor");
 

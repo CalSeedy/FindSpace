@@ -4,16 +4,12 @@ using System.Drawing;
 
 namespace SoupSoftware.FindSpace.Optimisers
 {
-
-
-
-
     public class TopCentreOptimiser : LinearPointOptimiser
     {
         private readonly ICoordinateSorter Lboundresolver = new LboundLinearSorter();
         private readonly ICoordinateSorter cntrResolver = new CentreLinearSorter();
         private readonly IPointGenerator pointgenerator = new HorizontalThenVerticalSweepPointGenerator();
-        public override IPointGenerator pointGenerator { get => pointgenerator; }
+        public override IPointGenerator PointGenerator { get => pointgenerator; }
         protected override ICoordinateSorter XAxisResolver { get => cntrResolver; }
 
         protected override ICoordinateSorter YAxisResolver { get => Lboundresolver; }
@@ -44,7 +40,7 @@ namespace SoupSoftware.FindSpace.Optimisers
         private readonly ICoordinateSorter Uboundresolver = new UboundLinearSorter();
         private readonly ICoordinateSorter cntrResolver = new CentreLinearSorter();
         private readonly IPointGenerator pointgenerator = new VerticalThenHorizontalSweepPointGenerator();
-        public override IPointGenerator pointGenerator { get => pointgenerator; }
+        public override IPointGenerator PointGenerator { get => pointgenerator; }
         protected override ICoordinateSorter XAxisResolver { get => cntrResolver; }
 
         protected override ICoordinateSorter YAxisResolver { get => Uboundresolver; }
