@@ -3,6 +3,7 @@
 ################################################################################
 
 /FindSpace/bin/Debug
+/FindSpace/bin/Release
 /FindSpace/obj
 /.vs
 /obj/Debug
@@ -41,6 +42,7 @@
 /FindSpaceTests/.vs/FindSpaceTests/v16
 /FindSpaceTests/bin/Debug
 /FindSpaceTests/obj/Debug
+/FindSpaceTests/bin/Release
 /FindSpaceTests/obj/Release
 */*.csproj.user
 FindSpaceTests/TestImages/Test-*.bmp
