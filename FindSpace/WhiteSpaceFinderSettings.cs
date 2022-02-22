@@ -149,7 +149,7 @@ namespace SoupSoftware.FindSpace
     }
     
   
-    public class WhitespacerfinderSettings
+    public class WhitespaceFinderSettings
     {
 
         //this value is used to determine if a pixel is empty or not. Future tweak to find average non black pixel and use the color of this

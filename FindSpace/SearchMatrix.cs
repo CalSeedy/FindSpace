@@ -79,10 +79,10 @@ namespace SoupSoftware.FindSpace
         public int Width { get; private set; }
         public int Height { get; private set; }
 
-        public readonly WhitespacerfinderSettings Settings;
+        public readonly WhitespaceFinderSettings Settings;
         public List<Rectangle> Stamps = new List<Rectangle>();
 
-        public SearchMatrix(Bitmap image, WhitespacerfinderSettings settings)
+        public SearchMatrix(Bitmap image, WhitespaceFinderSettings settings)
         {
             Image = image;
             Settings = settings;

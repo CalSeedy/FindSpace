@@ -54,7 +54,7 @@ namespace SoupSoftware.FindSpace.Results
             }
         }
 
-        private Rectangle ChooseBest(Point[] points, SearchMatrix masks, WhitespacerfinderSettings settings)
+        private Rectangle ChooseBest(Point[] points, SearchMatrix masks, WhitespaceFinderSettings settings)
         {
             Point optimal = settings.Optimiser.GetOptimalPoint(ScanArea);
 
@@ -93,7 +93,7 @@ namespace SoupSoftware.FindSpace.Results
             return new Rectangle(idxs.Select(x => copy[x.Value]).First(), new Size(StampWidth, StampHeight));
         }
 
-        internal void FilterMatches(SearchMatrix masks, WhitespacerfinderSettings settings)
+        internal void FilterMatches(SearchMatrix masks, WhitespaceFinderSettings settings)
         {
 
             List<Point> matches = new List<Point>();
@@ -122,7 +122,7 @@ namespace SoupSoftware.FindSpace.Results
             BestMatch = ChooseBest(matches.Distinct().ToArray(), masks, settings);
         }
 
-        internal Rectangle CompareBest(SearchMatrix masks, WhitespacerfinderSettings settings, FindResults other)
+        internal Rectangle CompareBest(SearchMatrix masks, WhitespaceFinderSettings settings, FindResults other)
         {
             if (BestMatch.IsEmpty || other.BestMatch.IsEmpty)
                 throw new InvalidOperationException("Cannot compare. BestMatch is empty");

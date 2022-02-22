@@ -64,7 +64,7 @@ namespace FindSpaceTests
             optimiser = (IOptimiser)Activator.CreateInstance(type);
 
 
-            SoupSoftware.FindSpace.WhitespacerfinderSettings wsf = new SoupSoftware.FindSpace.WhitespacerfinderSettings();
+            SoupSoftware.FindSpace.WhitespaceFinderSettings wsf = new SoupSoftware.FindSpace.WhitespaceFinderSettings();
             wsf.Optimiser = optimiser;
             wsf.Brightness = 30;
 
@@ -173,7 +173,7 @@ namespace FindSpaceTests
             g.FillRectangle(new SolidBrush(color), r);
             g.Flush();
 
-            SoupSoftware.FindSpace.WhitespacerfinderSettings wsf = new SoupSoftware.FindSpace.WhitespacerfinderSettings();
+            SoupSoftware.FindSpace.WhitespaceFinderSettings wsf = new SoupSoftware.FindSpace.WhitespaceFinderSettings();
             wsf.Margins = new ManualMargin(0);
             wsf.Brightness = 30;
             wsf.backgroundcolor = Color.Empty;
@@ -225,7 +225,7 @@ namespace FindSpaceTests
             optimiser = (IOptimiser)Activator.CreateInstance(type);
 
 
-            SoupSoftware.FindSpace.WhitespacerfinderSettings wsf = new SoupSoftware.FindSpace.WhitespacerfinderSettings();
+            SoupSoftware.FindSpace.WhitespaceFinderSettings wsf = new SoupSoftware.FindSpace.WhitespaceFinderSettings();
             wsf.Optimiser = optimiser;
             wsf.Brightness = 30;
 

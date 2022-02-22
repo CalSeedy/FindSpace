@@ -16,11 +16,11 @@ namespace SoupSoftware.FindSpace
         private SearchMatrix masks;
         private Rectangle WorkArea;
 
-        public WhitespacerfinderSettings Settings { get; private set; }
+        public WhitespaceFinderSettings Settings { get; private set; }
 
-        public WhiteSpaceFinder(Bitmap orig) => new WhiteSpaceFinder(orig, new WhitespacerfinderSettings());
+        public WhiteSpaceFinder(Bitmap orig) => new WhiteSpaceFinder(orig, new WhitespaceFinderSettings());
 
-        public WhiteSpaceFinder(Bitmap Image, WhitespacerfinderSettings settings)
+        public WhiteSpaceFinder(Bitmap Image, WhitespaceFinderSettings settings)
         {
             using (Bitmap newBmp = new Bitmap(Image))
             {
