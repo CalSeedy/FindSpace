@@ -249,6 +249,11 @@ namespace SoupSoftware.FindSpace
 
         public int CutOffVal { get; } = 3 * byte.MaxValue;
 
+        // Sum of weights should be 1.0f
+        public float GroupingWeight { get; set; } = 0.5f;
+        public float DistanceWeight { get; set; } = 0.5f;
+
+        public ushort BailOnExact { get; set; } = 5;
 
         public IOptimiser Optimiser { get; set; } = new BottomRightOptimiser();
 

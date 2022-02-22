@@ -28,6 +28,13 @@ namespace SoupSoftware.FindSpace.Optimisers
                 //#endif
             }
         }
+
+        public Point GetOptimalPoint(Rectangle rect)
+        {
+            return pointGenerator.GetOptimisedPoints(XAxisResolver.GetOptimisedPositions(rect.Left, rect.Right),
+                  YAxisResolver.GetOptimisedPositions(rect.Top, rect.Bottom)).First();
+        }
+
         public abstract IPointGenerator pointGenerator { get; }
 
     }
@@ -44,6 +51,10 @@ namespace SoupSoftware.FindSpace.Optimisers
             pointgenerator = new circularPointGenerator(target);
         }
 
+        public Point GetOptimalPoint(Rectangle rect)
+        {
+            return target;
+        }
 
         public IEnumerable<Point> GetOptimisedPoints(Rectangle rect)
         {

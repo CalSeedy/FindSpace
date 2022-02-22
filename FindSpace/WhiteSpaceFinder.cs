@@ -193,32 +193,27 @@ namespace SoupSoftware.FindSpace
         {
             Rectangle place2 = new Rectangle(WorkArea.Left, WorkArea.Top, findReturn.StampWidth, findReturn.StampHeight);
             FindResults target = findReturn.minValue <= findReturn90.minValue ? findReturn : findReturn90;
-            if (target.hasExactMatches())
+            findReturn.FilterMatches(masks, Settings);
+            if (findReturn90.containsResults)
             {
-                place2 = target.exactMatches.First();
+                findReturn90.FilterMatches(masks, Settings);
+                place2 = findReturn.CompareBest(masks, Settings, findReturn90);
             }
             else
             {
-
-                foreach (Point p in this.Settings.Optimiser.GetOptimisedPoints(ScanArea))
-                {
-                    if (target.possibleMatches[p.X, p.Y] == target.minValue && (!masks.Stamps.Any(r => r.IntersectsWith(new Rectangle(p.X, p.Y, target.StampWidth, target.StampHeight)))))
-                    {
-                        place2 = new Rectangle(p.X, p.Y, target.StampWidth, target.StampHeight);
-                    }
-                }
+                place2 = target.BestMatch;    
             }
-            place2 = new Rectangle(place2.X + Settings.Padding, place2.Y + Settings.Padding, place2.Width - 2 * Settings.Padding, place2.Height - 2 * Settings.Padding);
+            
+            
+            place2 = new Rectangle(place2.X + Settings.Padding, 
+                                    place2.Y + Settings.Padding, 
+                                    place2.Width - 2 * Settings.Padding,
+                                    place2.Height - 2 * Settings.Padding);
 #if TRACE
             Trace.WriteLine($"Position found: ({place2.X},{place2.Y}) : W={place2.Width}, H={place2.Height}");
 #endif
             return place2;
         }
-
-
-
-
-
 
 
         private FindResults FindLocations(int stampwidth, int stampheight, searchMatrix masks, Rectangle ScanArea)
@@ -250,7 +245,7 @@ namespace SoupSoftware.FindSpace
                         //bail on first find exact macth.
                         //return findReturn;
 
-                        if (findReturn.exactMatches.Count >= 5)
+                        if (findReturn.exactMatches.Count >= Settings.BailOnExact)
                             return findReturn;
                     }
                 }
