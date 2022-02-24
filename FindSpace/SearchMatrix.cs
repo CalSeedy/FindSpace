@@ -216,8 +216,8 @@ namespace SoupSoftware.FindSpace
             ulong highColRange = ((ulong)Settings.calcHighFilter((int)(modalColor & colorMask), Settings.DetectionRange)) << 32;
             ulong lowcolRange = ((ulong)Settings.calcLowFilter((int)(modalColor & colorMask), Settings.DetectionRange)) << 32;
 
-            if ((((modalColor & sumMask) >> 32) > (ulong)(765 - Settings.Brightness)))
-                return Color.White;
+            //if ((((modalColor & sumMask) >> 32) > (ulong)(765 - Settings.Brightness)))
+            //    return Color.White;
 
 
             //the below filters colors which have close sum of RGBs to the modal color (could be a completly diff color but very close sum)

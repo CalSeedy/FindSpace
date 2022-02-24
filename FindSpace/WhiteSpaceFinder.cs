@@ -36,21 +36,12 @@ namespace SoupSoftware.FindSpace
             WorkArea = Settings.Margins.GetWorkArea(masks);
         }
 
-        private Rectangle SelectBestArea(Rectangle ScanArea, FindResults findReturn, FindResults findReturn90)
+        private Rectangle SelectBestArea(Rectangle ScanArea, FindResults findReturn)
         {
             Rectangle place2 = new Rectangle(WorkArea.Left, WorkArea.Top, findReturn.StampWidth, findReturn.StampHeight);
-            FindResults target = findReturn.MinValue <= findReturn90.MinValue ? findReturn : findReturn90;
-            findReturn.FilterMatches(masks, Settings);
-            if (findReturn90.ContainsResults)
-            {
-                findReturn90.FilterMatches(masks, Settings);
-                place2 = findReturn.CompareBest(masks, Settings, findReturn90);
-            }
-            else
-            {
-                place2 = target.BestMatch;
-            }
+            findReturn.FilterMatches(masks);
 
+            place2 = findReturn.BestMatch;
 
             place2 = new Rectangle(place2.X + Settings.Padding,
                                     place2.Y + Settings.Padding,
@@ -66,44 +57,70 @@ namespace SoupSoftware.FindSpace
         private FindResults FindLocations(int stampwidth, int stampheight, SearchMatrix masks, Rectangle ScanArea)
         {
             int deepCheckFail = (stampheight * stampwidth) + 1;
-            FindResults findReturn = new FindResults(masks.Mask.GetLength(0), masks.Mask.GetLength(1), ScanArea);
-            findReturn.StampWidth = stampwidth;
-            findReturn.StampHeight = stampheight;
-            findReturn.ContainsResults = true;
-            //iterate the 2 matrices, if the top left corners X & Y sums is greater than the sticker dimensions its a potential location, 
-            // aswe add the loctions transposing the loction to the top left.
-            foreach (Point p in this.Settings.Optimiser.GetOptimisedPoints(ScanArea))
+            void CheckPosition(Point point, int[,] location, int w, int h, List<Rectangle> destination)
             {
-                if (masks.MaskValsX[p.X, p.Y] >= stampwidth && masks.MaskValsY[p.X, p.Y] >= stampheight)
+                if (masks.MaskValsX[point.X, point.Y] >= w && masks.MaskValsY[point.X, point.Y] >= h)
                 {
+                    location[point.X, point.Y] = Settings.SearchAlgorithm.Search(masks,
+                    point.X, point.Y, w, h);
 
-                    findReturn.PossibleMatches[p.X, p.Y] = Settings.SearchAlgorithm.Search(masks,
-                        p.X, p.Y, stampwidth, stampheight);
-
-
-
-                    if (findReturn.PossibleMatches[p.X, p.Y] == 0)
+                    if (location[point.X, point.Y] == 0)
                     {
-                        //if there are no zeros we can use this space, currently the first found place is used. (The algo is pre-optimised for desired location).
-
-                        findReturn.ExactMatches.Add(new Rectangle(
-                                                     p.X, p.Y, stampwidth, stampheight
+                        destination.Add(new Rectangle(
+                                                     point.X, point.Y, w, h
                                                     ));
-                        //bail on first find exact macth.
-                        //return findReturn;
-
-                        if (findReturn.ExactMatches.Count >= Settings.BailOnExact)
-                            return findReturn;
                     }
                 }
                 else
                 {
-                    // if the top left corner is not greater than sticker size just skip it..
-                    //when it comes to secondary searches we set the number of conflicting spaces to the max value possible.
-                    findReturn.PossibleMatches[p.X, p.Y] = deepCheckFail;
+                    location[point.X, point.Y] = deepCheckFail;
                 }
             }
 
+            //Stopwatch sw = new Stopwatch();
+            //sw.Start();
+            
+            FindResults findReturn = new FindResults(masks.Mask.GetLength(0), masks.Mask.GetLength(1), ScanArea);
+            findReturn.StampWidth = stampwidth;
+            findReturn.StampHeight = stampheight;
+            findReturn.ContainsResults = true;
+            if (Settings.AutoRotate && stampwidth != stampheight)
+            {
+                findReturn.IncludeRotated = true;
+            }
+
+            float percentScanned = 0.0f;
+            uint area = (uint)ScanArea.Width * (uint)ScanArea.Height;
+            uint remaining = area;
+            Point[] pts = this.Settings.Optimiser.GetOptimisedPoints(ScanArea).ToArray();
+            while (remaining > 0) 
+            {
+                if (percentScanned > (Settings.PercentageToScan / 100f))
+                    return findReturn;
+
+                Point p = pts[area - remaining];
+                CheckPosition(p, findReturn.PossibleMatches, stampwidth, stampheight, findReturn.ExactMatches);
+
+                if (findReturn.IncludeRotated)
+                {
+                    if (p.X + stampheight <= WorkArea.Right && p.Y + stampwidth <= WorkArea.Bottom)
+                        CheckPosition(p, findReturn.PossibleMatchesRotated, stampheight, stampwidth, findReturn.ExactMatches);
+                }
+
+                if (findReturn.ExactMatches.Count >= Settings.BailOnExact)
+                {
+                    if (remaining < 0.005f*area*Settings.PercentageToScan) // If we scanned more than half
+                    {
+                        return findReturn;
+                    }
+                    else
+                    {
+                        remaining -= (uint)(0.005f * area * Settings.PercentageToScan);
+                    }
+                }
+                percentScanned = (area - remaining) / (float)(area);
+                remaining--;
+            } 
             return findReturn;
         }
 
@@ -138,6 +155,7 @@ namespace SoupSoftware.FindSpace
 #if DEBUG
                 sw.Restart();
                 Rectangle res = FindSpaceFor(stamp, filename, count);
+                Trace.WriteLine($"FindSpaceFor: {sw.ElapsedMilliseconds}ms");
 #else
                 Rectangle res = FindSpaceFor(stamp);
 #endif
@@ -184,19 +202,11 @@ namespace SoupSoftware.FindSpace
                 Trace.WriteLine($"Margins: L={Settings.Margins.Left}, T={Settings.Margins.Top}, R={Settings.Margins.Right}, B={Settings.Margins.Bottom}");
 #endif
             }
-
-            FindResults findReturn = FindLocations(stampwidth, stampheight, masks, TopLeftBiasedScanArea);
-            FindResults findReturn90 = new FindResults(image.Width, image.Height, TopLeftBiasedScanArea);
+            Rectangle focus = Settings.Optimiser.GetFocusArea(TopLeftBiasedScanArea);
+            FindResults findReturn = FindLocations(stampwidth, stampheight, masks, focus);
 #if DEBUG && POSSIBLES
-            findReturn.PossiblesToBitmap($"TestImages\\Possibles\\{count}-findReturn.bmp");
+            findReturn.PossiblesToBitmap($"TestImages\\Possibles\\{count}-{Settings.Optimiser.GetType().Name}-findReturn.bmp");
 #endif
-            if (Settings.AutoRotate && !findReturn.HasExactMatches() && stampheight != stampwidth)
-            {
-                findReturn90 = FindLocations(stampheight, stampwidth, masks, TopLeftBiasedScanArea);
-#if DEBUG && POSSIBLES
-            findReturn90.PossiblesToBitmap($"TestImages\\Possibles\\{count}-findReturn90.bmp");
-#endif
-            }
 #if DEBUG
             if (filename.Length > 0)
             {
@@ -208,11 +218,11 @@ namespace SoupSoftware.FindSpace
                 string dir = System.IO.Path.GetDirectoryName(filename);
                 string maskFile = filename.Replace(extension, "-mask"+ count + Settings.Optimiser.GetType().Name + extension);
                 maskFile = maskFile.Replace(dir, dir + "\\Masks");
-                MaskToBitmap(maskFile);//, true);
+                MaskToBitmap(maskFile, true);
 #endif
             }
 #endif
-            return SelectBestArea(TopLeftBiasedScanArea, findReturn, findReturn90);
+            return SelectBestArea(focus, findReturn);
         }
 
 #region Debug Methods

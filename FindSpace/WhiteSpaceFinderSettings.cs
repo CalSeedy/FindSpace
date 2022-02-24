@@ -227,7 +227,7 @@ namespace SoupSoftware.FindSpace
         public int filterHigh { get; private set; } = 765;
 
 
-       
+        public byte PercentageToScan { get; set; } = 25;
 
         public IDeepSearch SearchAlgorithm { get; set; } = new ExactSearch();
 
@@ -243,7 +243,9 @@ namespace SoupSoftware.FindSpace
         public float GroupingWeight { get; set; } = 0.5f;
         public float DistanceWeight { get; set; } = 0.5f;
 
-        public ushort BailOnExact { get; set; } = 5;
+        public byte PercentageOverlap { get; set; } = 0;
+
+        public ushort BailOnExact { get; set; } = 3;
 
         public IOptimiser Optimiser { get; set; } = new BottomRightOptimiser();
 

@@ -13,10 +13,24 @@ namespace SoupSoftware.FindSpace.Optimisers
         protected override ICoordinateSorter XAxisResolver { get => cntrResolver; }
 
         protected override ICoordinateSorter YAxisResolver { get => Lboundresolver; }
+
+        public override Rectangle GetFocusArea(Rectangle rect)
+        {
+            return new Rectangle(rect.X + rect.Width / 6, rect.Y, 2 * rect.Width / 3, 2 * rect.Height / 3);
+        }
     }
 
     public class MiddleCentreOptimiser : IOptimiser
     {
+        public Rectangle GetFocusArea(Rectangle rect)
+        {
+            int x = (rect.Right - rect.Left) / 2;
+            int y = (rect.Bottom - rect.Top) / 2;
+
+            Optimisers.TargetOptimiser c = new TargetOptimiser(new Point(x, y));
+            return c.GetFocusArea(rect);
+        }
+
         public Point GetOptimalPoint(Rectangle rect)
         {
             int x = (rect.Right - rect.Left) / 2;
@@ -33,6 +47,8 @@ namespace SoupSoftware.FindSpace.Optimisers
             return c.GetOptimisedPoints(rect);
 
         }
+
+
     }
 
     public class BottomCentreOptimiser : LinearPointOptimiser
@@ -44,6 +60,11 @@ namespace SoupSoftware.FindSpace.Optimisers
         protected override ICoordinateSorter XAxisResolver { get => cntrResolver; }
 
         protected override ICoordinateSorter YAxisResolver { get => Uboundresolver; }
+        public override Rectangle GetFocusArea(Rectangle rect)
+        {
+            int y = rect.Y + rect.Height / 3;
+            return new Rectangle(rect.X + rect.Width / 6, y, 2 * rect.Width / 3, 2 * rect.Height / 3);
+        }
     }
 
 

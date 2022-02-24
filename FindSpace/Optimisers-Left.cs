@@ -1,4 +1,5 @@
 ﻿using SoupSoftware.FindSpace.Interfaces;
+using System.Drawing;
 
 namespace SoupSoftware.FindSpace.Optimisers
 {
@@ -12,6 +13,11 @@ namespace SoupSoftware.FindSpace.Optimisers
         protected override ICoordinateSorter XAxisResolver { get => Lboundresolver; }
 
         protected override ICoordinateSorter YAxisResolver { get => Lboundresolver; }
+
+        public override Rectangle GetFocusArea(Rectangle rect)
+        {
+            return new Rectangle(rect.X, rect.Y, 2 * rect.Width / 3, 2 * rect.Height / 3);
+        }
     }
 
     public class MiddleLeftOptimiser : LinearPointOptimiser
@@ -24,6 +30,10 @@ namespace SoupSoftware.FindSpace.Optimisers
 
         protected override ICoordinateSorter YAxisResolver { get => cntrResolver; }
 
+        public override Rectangle GetFocusArea(Rectangle rect)
+        {
+            return new Rectangle(rect.X, rect.Y + rect.Height / 6, 2 * rect.Width / 3, 2 * rect.Height / 3);
+        }
     }
 
     public class BottomLeftOptimiser : LinearPointOptimiser
@@ -35,6 +45,11 @@ namespace SoupSoftware.FindSpace.Optimisers
         protected override ICoordinateSorter XAxisResolver { get => Lboundresolver; }
 
         protected override ICoordinateSorter YAxisResolver { get => Uboundresolver; }
+
+        public override Rectangle GetFocusArea(Rectangle rect)
+        {
+            return new Rectangle(rect.X, rect.Y + (1 * rect.Height / 3), 2 * rect.Width / 3, 2 * rect.Height / 3);
+        }
     }
 
 

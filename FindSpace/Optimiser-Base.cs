@@ -32,10 +32,10 @@ namespace SoupSoftware.FindSpace.Optimisers
                   YAxisResolver.GetOptimisedPositions(rect.Top, rect.Bottom)).First();
         }
 
+        public abstract Rectangle GetFocusArea(Rectangle rect);
     }
 
     public class TargetOptimiser : IOptimiser
-
     {
         private System.Drawing.Point target;
 
@@ -55,6 +55,13 @@ namespace SoupSoftware.FindSpace.Optimisers
         {
             return pointgenerator.GetOptimisedPoints(Enumerable.Range(rect.Left,
                 rect.Right), Enumerable.Range(rect.Top, rect.Bottom));
+        }
+
+        public Rectangle GetFocusArea(Rectangle rect)
+        {
+            int x = rect.X + (rect.Width / 4);
+            int y = rect.Y + (rect.Height / 4);
+            return new Rectangle(x, y, rect.Width / 2, rect.Height / 2);
         }
     }
 

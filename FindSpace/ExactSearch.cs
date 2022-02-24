@@ -33,15 +33,14 @@ namespace SoupSoftware.FindSpace
 
                     }
                 }
-
+                byte percOverlap = (byte)(100*res / (Width * Height));
+                return (percOverlap <= masks.Settings.PercentageOverlap) ? percOverlap : percOverlap * Int32.MaxValue;
             }
             catch (Exception)
             {
 
 
-            }
-
-
+            } 
             return res;
 
         }

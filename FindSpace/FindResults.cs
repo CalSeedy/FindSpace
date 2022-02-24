@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace SoupSoftware.FindSpace.Results
 {
@@ -17,13 +20,26 @@ namespace SoupSoftware.FindSpace.Results
         public Rectangle BestMatch { get; private set; }
         public List<Rectangle> ExactMatches { get; private set; } = new List<Rectangle>();
         public int[,] PossibleMatches;
+        public int[,] PossibleMatchesRotated;
+        public bool IncludeRotated { get; set; } = false;
         public int MinValue
         {
             get
             {
                 if (minvalue == System.Int32.MaxValue)
                 {
-                    minvalue = SquareIterator(PossibleMatches, ScanArea).Min();
+                    int minNormal = SquareIterator(PossibleMatches, ScanArea).Min();
+
+                    if (IncludeRotated)
+                    {
+                        int minRotated = SquareIterator(PossibleMatchesRotated, ScanArea).Min();
+
+                        minvalue = Math.Min(minRotated, minNormal);
+                    }
+                    else
+                    {
+                        minvalue = minNormal;
+                    }
                 }
                 return minvalue;
             }
@@ -32,9 +48,13 @@ namespace SoupSoftware.FindSpace.Results
         public FindResults(int width, int height, Rectangle scanArea)
         {
             PossibleMatches = new int[width, height];
+            PossibleMatchesRotated = new int[width, height];
             for (int i = 0; i < width; i++)
                 for (int j = 0; j < height; j++)
+                {
                     PossibleMatches[i, j] = System.Int32.MaxValue;
+                    PossibleMatchesRotated[i, j] = System.Int32.MaxValue;
+                }
             ScanArea = scanArea;
         }
 
@@ -54,16 +74,19 @@ namespace SoupSoftware.FindSpace.Results
             }
         }
 
-        private Rectangle ChooseBest(Point[] points, SearchMatrix masks, WhitespaceFinderSettings settings)
+
+        private Rectangle ChooseBest(Rectangle[] points, SearchMatrix masks)
         {
-            Point optimal = settings.Optimiser.GetOptimalPoint(ScanArea);
+            //Stopwatch sw = new Stopwatch();
+            //sw.Start();
+            Point optimal = masks.Settings.Optimiser.GetOptimalPoint(ScanArea);
 
             int N = points.Length;
             double[] values = new double[N];
             for (int i = 0; i < N; ++i)
             {
-                Point match = points[i];
-                double distanceToOpt = GeoLibrary.DistanceTo(match, optimal);
+                Rectangle match = points[i];
+                double distanceToOpt = GeoLibrary.DistanceTo(match.Location, optimal);
 
                 // if we have a stamp, get avg stamp position
                 double distanceToOthers = 0;
@@ -80,59 +103,75 @@ namespace SoupSoftware.FindSpace.Results
                     }
                     avgX /= C;
                     avgY /= C;
-                    distanceToOthers = GeoLibrary.DistanceTo(new Point(avgX, avgY), optimal);
+                    distanceToOthers = optimal.DistanceTo(new Point(avgX, avgY));
                 }
-
-                values[i] = settings.DistanceWeight * distanceToOpt + settings.GroupingWeight * distanceToOthers;
+                // filter results / stop overlap
+                if (masks.Stamps.Any(r => r.IntersectsWith(match)))
+                    values[i] = Int64.MaxValue;
+                else    
+                    values[i] = (StampWidth != match.Width ? PossibleMatchesRotated[match.Location.X, match.Location.Y] :
+                                    PossibleMatches[match.Location.X, match.Location.Y]) 
+                        + masks.Settings.DistanceWeight * distanceToOpt + masks.Settings.GroupingWeight * distanceToOthers;
             }
 
-            Point[] copy = points.ToArray();
+            Rectangle[] copy = points.ToArray();
             var idxs = values.Select((x, n) => new KeyValuePair<double, int>(x, n))
                              .OrderBy(x => x.Key).ToList();
 
-            return new Rectangle(idxs.Select(x => copy[x.Value]).First(), new Size(StampWidth, StampHeight));
+            var output =  idxs.Select(x => copy[x.Value]).First();
+            //sw.Stop();
+            //Trace.WriteLine($"ChooseBest: {sw.ElapsedMilliseconds}ms");
+            return output;
         }
 
-        internal void FilterMatches(SearchMatrix masks, WhitespaceFinderSettings settings)
+        internal void FilterMatches(SearchMatrix masks)
         {
-
-            List<Point> matches = new List<Point>();
-
-
-            for (int j = 0; j < PossibleMatches.GetLength(1); ++j)
+            /*
+            lock (PossibleMatches)
             {
-                for (int i = 0; i < PossibleMatches.GetLength(0); ++i)
+                Stopwatch sw2 = new Stopwatch();
+                sw2.Start();
+                Point[] possibles = GetMinimumPoints(masks);
+                ConcurrentQueue<Point> queue = new ConcurrentQueue<Point>();
+                Parallel.ForEach(possibles, (p) =>
                 {
-                    if (PossibleMatches[i, j] == minvalue)
-                        matches.Add(new Point(i + 1, j + 1));
-                }
+                    if (PossibleMatches[p.X, p.Y] <= minvalue + masks.Settings.Forgiveness * 100f)
+                        queue.Enqueue(new Point(p.X, p.Y));                 
+                });
+                sw2.Stop();
+                Trace.WriteLine($"ForEach: {sw2.ElapsedMilliseconds} ms");
+                
+                matches = queue.ToList();
+                Trace.WriteLine("Potentials: " + matches.Count);
             }
+            */
+            Rectangle focus = masks.Settings.Optimiser.GetFocusArea(ScanArea);
+            IEnumerable <Point> optimals = masks.Settings.Optimiser.GetOptimisedPoints(focus);
+            List<Rectangle> matches = new List<Rectangle>();
+            foreach (var a in ExactMatches)
+                matches.Add(a);
 
-            int nExact = ExactMatches.Count;
-            int nPossible = matches.Count;
-
-            if (nExact > 0)
+            uint compareVal = Math.Max((uint)minvalue, (uint)minvalue + (uint)((masks.Settings.PercentageOverlap/100f) * StampHeight * StampWidth));
+            ConcurrentQueue<Rectangle> queue = new ConcurrentQueue<Rectangle>();
+            Parallel.ForEach(optimals, (p) =>
             {
-                matches.AddRange(ExactMatches.Select(x => x.Location));
-            }
+                if (PossibleMatches[p.X, p.Y] <= compareVal)
+                    queue.Enqueue(new Rectangle(p, new Size(StampWidth, StampHeight)));
 
-            // filter results / stop overlap
-            matches = matches.Where(x => !masks.Stamps.Any(r => r.IntersectsWith(new Rectangle(x.X, x.Y, StampWidth, StampHeight)))).ToList();
+                if (IncludeRotated)
+                {
+                    if (PossibleMatchesRotated[p.X, p.Y] <= compareVal)
+                        queue.Enqueue(new Rectangle(p, new Size(StampHeight, StampWidth)));
+                }    
+            });
 
-            BestMatch = ChooseBest(matches.Distinct().ToArray(), masks, settings);
+            matches.AddRange(queue.ToArray());
+
+            BestMatch = ChooseBest(matches.Distinct().ToArray(), masks);
+
         }
 
-        internal Rectangle CompareBest(SearchMatrix masks, WhitespaceFinderSettings settings, FindResults other)
-        {
-            if (BestMatch.IsEmpty || other.BestMatch.IsEmpty)
-                throw new InvalidOperationException("Cannot compare. BestMatch is empty");
-
-            Point[] ps = new Point[2];
-            ps[0] = this.BestMatch.Location;
-            ps[1] = other.BestMatch.Location;
-            return ChooseBest(ps, masks, settings);
-        }
-
+        #region DEBUG
 #if DEBUG
         public void PossiblesToBitmap(string filepath)
         {
@@ -174,7 +213,7 @@ namespace SoupSoftware.FindSpace.Results
                     for (int j = 0; j < h; j++)
                     {
                         Color col;
-                        int val = PossibleMatches[i, j];
+                        long val = PossibleMatches[i, j];
                         if (val != Int32.MaxValue)
                             col = GradientPick(((val - min) / (max - min)), green, red);
                         else
@@ -192,5 +231,6 @@ namespace SoupSoftware.FindSpace.Results
             maskBitmap.Save(filepath);
         }
 #endif
+        #endregion
     }
 }

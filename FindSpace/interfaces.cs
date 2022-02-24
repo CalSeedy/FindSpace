@@ -10,6 +10,8 @@ namespace SoupSoftware.FindSpace.Interfaces
         IEnumerable<Point> GetOptimisedPoints(Rectangle rect);
 
         Point GetOptimalPoint(Rectangle rect);
+
+        Rectangle GetFocusArea(Rectangle rect);
     }
 
     public interface ICoordinateSorter
