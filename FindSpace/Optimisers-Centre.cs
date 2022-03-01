@@ -16,7 +16,7 @@ namespace SoupSoftware.FindSpace.Optimisers
 
         public override Rectangle GetFocusArea(Rectangle rect)
         {
-            return new Rectangle(rect.X + rect.Width / 6, rect.Y, 2 * rect.Width / 3, 2 * rect.Height / 3);
+            return new Rectangle(rect.X + rect.Width / 10, rect.Y, 4 * rect.Width / 5, 4 * rect.Height / 5);
         }
     }
 
@@ -63,7 +63,7 @@ namespace SoupSoftware.FindSpace.Optimisers
         public override Rectangle GetFocusArea(Rectangle rect)
         {
             int y = rect.Y + rect.Height / 3;
-            return new Rectangle(rect.X + rect.Width / 6, y, 2 * rect.Width / 3, 2 * rect.Height / 3);
+            return new Rectangle(rect.X + rect.Width / 10, y, 4 * rect.Width / 5, 4 * rect.Height / 5);
         }
     }
 

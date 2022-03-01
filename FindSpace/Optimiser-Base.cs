@@ -59,9 +59,9 @@ namespace SoupSoftware.FindSpace.Optimisers
 
         public Rectangle GetFocusArea(Rectangle rect)
         {
-            int x = rect.X + (rect.Width / 4);
-            int y = rect.Y + (rect.Height / 4);
-            return new Rectangle(x, y, rect.Width / 2, rect.Height / 2);
+            int x = rect.X + (rect.Width / 10);
+            int y = rect.Y + (rect.Height / 10);
+            return new Rectangle(x, y, 4 * rect.Width / 5, 4 * rect.Height / 5);
         }
     }
 
