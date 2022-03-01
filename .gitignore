@@ -47,3 +47,4 @@
 */*.csproj.user
 FindSpaceTests/TestImages/Test-*.bmp
 FindSpaceTests/TestImages/*.pdf
+/FindSpaceTODO.txt

@@ -188,7 +188,8 @@ namespace FindSpaceTests
         }
 
         [DataTestMethod]
-        //[DataRow("TestImages/Test-Real5.bmp", typeof(BottomOptimiser))]
+        //[DataRow("TestImages/Test-Real7.bmp", typeof(TopCentreOptimiser))]
+        //[DataRow("TestImages/Test-Real8.bmp", typeof(TopCentreOptimiser))]
         [DynamicData(nameof(GetTestData), DynamicDataSourceType.Method)]
         public void MultipleStampsTest(string testfilepath, Type type)
         {
@@ -212,11 +213,17 @@ namespace FindSpaceTests
 #else
             Rectangle[] stamps = new Rectangle[] {
                 new Rectangle(0,0,50,50),
-                new Rectangle(0,0,75,50),
+                new Rectangle(0,0,50,50),
+                new Rectangle(0,0,50,50),
+                //new Rectangle(0,0,50,50),
+                //new Rectangle(0,0,50,50),
+                //new Rectangle(0,0,50,50),
+                //new Rectangle(0,0,50,50),
+                //new Rectangle(0,0,75,50),
                 //new Rectangle(0,0,40,100),
                 //new Rectangle(0,0,41,54),
                 //new Rectangle(0,0,84,35),
-                new Rectangle(0,0,59,72)
+                //new Rectangle(0,0,59,72)
             };
 #endif
             Bitmap b = CreateBitmap(testfilepath);
@@ -227,11 +234,12 @@ namespace FindSpaceTests
 
             SoupSoftware.FindSpace.WhitespaceFinderSettings wsf = new SoupSoftware.FindSpace.WhitespaceFinderSettings();
             wsf.Optimiser = optimiser;
-            wsf.Brightness = 30;
-            wsf.BailOnExact = 1;
+            wsf.AutoRotate = false;
+            wsf.Brightness = 50;
+            wsf.BailOnExact = 100;
             wsf.DistanceWeight = 0.0f;
-            wsf.GroupingWeight = 0.0f;
-            wsf.PercentageToScan = 25;
+            wsf.GroupingWeight = 1.0f;
+            wsf.PercentageToScan = 100;
             wsf.PercentageOverlap = 0;
             wsf.backGroundColor = Color.Empty;
             wsf.Margins = new AutomaticMargin();
@@ -245,9 +253,9 @@ namespace FindSpaceTests
             sw.Start();
             string extension = System.IO.Path.GetExtension(testfilepath);
 #if MASKS || CSVS
-            Rectangle[] rs = w.FindSpaceFor(stamps, testfilepath);
+            Rectangle?[] rs = w.FindSpaceFor(stamps, testfilepath);
 #else
-            Rectangle[] rs = w.FindSpaceFor(stamps);
+            Rectangle?[] rs = w.FindSpaceFor(stamps);
 #endif
             sw.Stop();
             Trace.WriteLine("Completion... " + sw.ElapsedMilliseconds + " ms");
@@ -257,16 +265,19 @@ namespace FindSpaceTests
             if (rs != null)
             {
                 Graphics g = System.Drawing.Graphics.FromImage(b);
-                foreach (Rectangle r in rs)
-                    if (r != null)
-                        g.FillRectangle(new SolidBrush(Color.FromArgb(127, 255, 0, 0)), r);
-
                 int x = w.Settings.Margins.Left, y = w.Settings.Margins.Top;
                 int width = (b.Width - x - w.Settings.Margins.Right);
                 int height = (b.Height - y - w.Settings.Margins.Bottom);
+                foreach (Rectangle? r in rs)
+                {
+                    if (r.HasValue)
+                    {
+                        g.FillRectangle(new SolidBrush(Color.FromArgb(127, 255, 0, 0)), r.Value);
+                        g.DrawRectangle(Pens.Green, w.Settings.Optimiser.GetFocusArea(new Rectangle(x, y, width - r.Value.Width, height - r.Value.Height)));
+                    }
+                }
                 g.DrawRectangle(Pens.Blue, new Rectangle(x, y, width, height));
 
-                g.DrawRectangle(Pens.Green, w.Settings.Optimiser.GetFocusArea(new Rectangle(x, y, width, height)));
                 g.Flush();
                 extension = System.IO.Path.GetExtension(testfilepath);
                 string filepath = testfilepath.Replace(extension, optimiser.GetType().Name + "-Multiple" + extension);
@@ -275,8 +286,9 @@ namespace FindSpaceTests
                 g.Dispose();
             }
             var perms = Extensions.GetPermutations(rs, 2);  //.Where(x=> x.First() != x.Last());
-            Assert.IsFalse(perms.Any(x => x.First().IntersectsWith(x.Last())));
-            Assert.IsFalse(rs.Any(x => x.Left < 0 || x.Top < 0 || x.Bottom > b.Height || x.Right > b.Width));
+            Assert.IsTrue(rs.All(x => x.HasValue));
+            Assert.IsFalse(perms.Any(x => x.First().Value.IntersectsWith(x.Last().Value)));
+            Assert.IsFalse(rs.Any(x => x.Value.Left < 0 || x.Value.Top < 0 || x.Value.Bottom > b.Height || x.Value.Right > b.Width));
             b.Dispose();
         }
     }

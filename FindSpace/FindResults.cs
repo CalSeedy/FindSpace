@@ -17,7 +17,7 @@ namespace SoupSoftware.FindSpace.Results
         public bool ContainsResults { get; set; } = false;
         public int StampWidth { get; set; } = 0;
         public int StampHeight { get; set; } = 0;
-        public Rectangle BestMatch { get; private set; }
+        public Rectangle? BestMatch { get; private set; }
         public List<Rectangle> ExactMatches { get; private set; } = new List<Rectangle>();
         public int[,] PossibleMatches;
         public int[,] PossibleMatchesRotated;
@@ -75,50 +75,75 @@ namespace SoupSoftware.FindSpace.Results
         }
 
 
-        private Rectangle ChooseBest(Rectangle[] points, SearchMatrix masks)
+        private Rectangle? ChooseBest(Rectangle[] points, SearchMatrix masks)
         {
+            int N = points.Length;
+            if (N == 0)
+                return null;
             //Stopwatch sw = new Stopwatch();
             //sw.Start();
             Point optimal = masks.Settings.Optimiser.GetOptimalPoint(ScanArea);
 
-            int N = points.Length;
+            // if we have any stamps, get avg stamp position
+            double distanceToOthers = 0;
+            int C = masks.Stamps.Count;
+            Point? group = null;
+            if (C > 0)
+            {
+                int avgX = 0;
+                int avgY = 0;
+
+                for (int k = 0; k < C; k++)
+                {
+                    avgX += masks.Stamps[k].X;
+                    avgY += masks.Stamps[k].Y;
+                }
+                avgX /= C;
+                avgY /= C;
+
+                group = new Point(avgX, avgY);
+            }
+
             double[] values = new double[N];
             for (int i = 0; i < N; ++i)
             {
                 Rectangle match = points[i];
-                double distanceToOpt = GeoLibrary.DistanceTo(match.Location, optimal);
+                double distanceToOpt = optimal.DistanceTo(match.Location);
 
-                // if we have a stamp, get avg stamp position
-                double distanceToOthers = 0;
-                int C = masks.Stamps.Count;
-                if (C > 0)
+                if (group != null)
                 {
-                    int avgX = 0;
-                    int avgY = 0;
-
-                    for (int k = 0; k < C; ++k)
-                    {
-                        avgX += masks.Stamps[k].X;
-                        avgY += masks.Stamps[k].Y;
-                    }
-                    avgX /= C;
-                    avgY /= C;
-                    distanceToOthers = optimal.DistanceTo(new Point(avgX, avgY));
+                    distanceToOthers = match.Location.DistanceTo(group.Value);
                 }
                 // filter results / stop overlap
                 if (masks.Stamps.Any(r => r.IntersectsWith(match)))
+                {
                     values[i] = Int64.MaxValue;
-                else    
-                    values[i] = (StampWidth != match.Width ? PossibleMatchesRotated[match.Location.X, match.Location.Y] :
-                                    PossibleMatches[match.Location.X, match.Location.Y]) 
-                        + masks.Settings.DistanceWeight * distanceToOpt + masks.Settings.GroupingWeight * distanceToOthers;
+                }
+                else
+                {
+                    double overlapPcnt = (StampWidth != match.Width ? PossibleMatchesRotated[match.Location.X, match.Location.Y] :
+                                    PossibleMatches[match.Location.X, match.Location.Y]);
+                    if (overlapPcnt == 0.0f)
+                    {
+                        values[i] = Math.Pow(masks.Settings.DistanceWeight, 2) * distanceToOpt
+                                        + Math.Pow(masks.Settings.GroupingWeight, 2) * distanceToOthers;
+                    }
+                    else
+                    {
+                        values[i] = overlapPcnt + overlapPcnt * (masks.Settings.DistanceWeight * distanceToOpt
+                                                            + masks.Settings.GroupingWeight * distanceToOthers);
+                    }
+                }
             }
 
-            Rectangle[] copy = points.ToArray();
-            var idxs = values.Select((x, n) => new KeyValuePair<double, int>(x, n))
-                             .OrderBy(x => x.Key).ToList();
+            KeyValuePair<Point, double>[] pairings = new KeyValuePair<Point, double>[N];
+            for (int i = 0; i < N; i++)
+            {
+                pairings[i] = new KeyValuePair<Point, double>(points[i].Location, values[i]);
+            }
 
-            var output =  idxs.Select(x => copy[x.Value]).First();
+            Rectangle? output = points.Where(p => p.Location == pairings.OrderBy(x => x.Value).Select(x => x.Key).First())?.First();
+
             //sw.Stop();
             //Trace.WriteLine($"ChooseBest: {sw.ElapsedMilliseconds}ms");
             return output;
@@ -146,12 +171,12 @@ namespace SoupSoftware.FindSpace.Results
             }
             */
             Rectangle focus = masks.Settings.Optimiser.GetFocusArea(ScanArea);
-            IEnumerable <Point> optimals = masks.Settings.Optimiser.GetOptimisedPoints(focus);
+            IEnumerable<Point> optimals = masks.Settings.Optimiser.GetOptimisedPoints(focus);
             List<Rectangle> matches = new List<Rectangle>();
             foreach (var a in ExactMatches)
                 matches.Add(a);
 
-            uint compareVal = Math.Max((uint)minvalue, (uint)minvalue + (uint)((masks.Settings.PercentageOverlap/100f) * StampHeight * StampWidth));
+            int compareVal = masks.Settings.PercentageOverlap;
             ConcurrentQueue<Rectangle> queue = new ConcurrentQueue<Rectangle>();
             Parallel.ForEach(optimals, (p) =>
             {

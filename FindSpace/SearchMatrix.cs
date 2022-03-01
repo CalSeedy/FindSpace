@@ -1,6 +1,7 @@
 ﻿using SoupSoftware.FindSpace.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
@@ -196,7 +197,7 @@ namespace SoupSoftware.FindSpace
         {
             const ulong sumMask = UInt64.MaxValue - UInt32.MaxValue;
             const ulong colorMask = UInt32.MaxValue;
-            const ulong coarseFilterMask = 0xF7F7F7;                // TODO: adaptive coarseFilter based on max brightness
+            const ulong coarseFilterMask = 0xFFFFFF;                // TODO: adaptive coarseFilter based on max brightness
 
             GetBitmapData(out int depth, out byte[] buffer);
             int len = Width * Height;
@@ -211,7 +212,6 @@ namespace SoupSoftware.FindSpace
 
             IEnumerable<IGrouping<ulong, ulong>> colorGroups = RoundCol.GroupBy(d => d & colorMask); //group based on color as int
             ulong modalColor = colorGroups.OrderBy(g => g.Count()).Last().First(); //most occouring Color
-
             //cutoff filter (fine based on sum of components)
             ulong highColRange = ((ulong)Settings.calcHighFilter((int)(modalColor & colorMask), Settings.DetectionRange)) << 32;
             ulong lowcolRange = ((ulong)Settings.calcLowFilter((int)(modalColor & colorMask), Settings.DetectionRange)) << 32;
@@ -225,7 +225,6 @@ namespace SoupSoftware.FindSpace
                 (highColRange >= (g.First() & sumMask)) &&          // check if sum is between upper and lower limits
                 (lowcolRange <= (g.First() & sumMask)))
                                                     .Select(h => h.First()).ToArray();
-
             //the below filters colors which have close RGBs i.e. only similar colors.
             ulong[] cols = colorGroupsRefined.Where(x => {
                 ulong coly = (coarseFilterMask & x);

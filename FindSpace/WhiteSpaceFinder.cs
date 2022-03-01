@@ -36,20 +36,22 @@ namespace SoupSoftware.FindSpace
             WorkArea = Settings.Margins.GetWorkArea(masks);
         }
 
-        private Rectangle SelectBestArea(Rectangle ScanArea, FindResults findReturn)
+        private Rectangle? SelectBestArea(Rectangle ScanArea, FindResults findReturn)
         {
-            Rectangle place2 = new Rectangle(WorkArea.Left, WorkArea.Top, findReturn.StampWidth, findReturn.StampHeight);
+            Rectangle? place2 = new Rectangle(WorkArea.Left, WorkArea.Top, findReturn.StampWidth, findReturn.StampHeight);
             findReturn.FilterMatches(masks);
 
             place2 = findReturn.BestMatch;
-
-            place2 = new Rectangle(place2.X + Settings.Padding,
-                                    place2.Y + Settings.Padding,
-                                    place2.Width - 2 * Settings.Padding,
-                                    place2.Height - 2 * Settings.Padding);
+            if (place2.HasValue)
+            {
+                place2 = new Rectangle(place2.Value.X + Settings.Padding,
+                                    place2.Value.Y + Settings.Padding,
+                                    place2.Value.Width - 2 * Settings.Padding,
+                                    place2.Value.Height - 2 * Settings.Padding);
 #if DEBUG && TRACE
-            Trace.WriteLine($"Position found: ({place2.X},{place2.Y}) : W={place2.Width}, H={place2.Height}");
+                Trace.WriteLine($"Position found: ({place2.Value.X},{place2.Value.Y}) : W={place2.Value.Width}, H={place2.Value.Height}");
 #endif
+            }
             return place2;
         }
 
@@ -93,6 +95,7 @@ namespace SoupSoftware.FindSpace
             uint area = (uint)ScanArea.Width * (uint)ScanArea.Height;
             uint remaining = area;
             Point[] pts = this.Settings.Optimiser.GetOptimisedPoints(ScanArea).ToArray();
+            bool state = false;
             while (remaining > 0) 
             {
                 if (percentScanned > (Settings.PercentageToScan / 100f))
@@ -107,16 +110,22 @@ namespace SoupSoftware.FindSpace
                         CheckPosition(p, findReturn.PossibleMatchesRotated, stampheight, stampwidth, findReturn.ExactMatches);
                 }
 
-                if (findReturn.ExactMatches.Count >= Settings.BailOnExact)
+                if (findReturn.ExactMatches.Count >= Settings.BailOnExact)              // if we have the correct amount/ more of exact matches
                 {
-                    if (remaining < 0.005f*area*Settings.PercentageToScan) // If we scanned more than half
+                    if (remaining < 0.005f*area*Settings.PercentageToScan) //&& shouldContinue) // If we scanned more than half of whole work area
                     {
-                        return findReturn;
+                        return findReturn;                                      // just return what we have
                     }
-                    else
+                        
+                    else                                                   // if we have scanned less than half and already found enough exact matches
                     {
-                        remaining -= (uint)(0.005f * area * Settings.PercentageToScan);
+                        if (!state)                                     // and we have not limited the search already
+                        {
+                            remaining -= (uint)(0.005f * area * Settings.PercentageToScan) - 1; // limit the remaining pixels to search to 1/2 - current
+                            state = true;
+                        }
                     }
+                      
                 }
                 percentScanned = (area - remaining) / (float)(area);
                 remaining--;
@@ -124,7 +133,7 @@ namespace SoupSoftware.FindSpace
             return findReturn;
         }
 
-        public Rectangle FindSpaceAt(Rectangle stamp, Point pt)
+        public Rectangle? FindSpaceAt(Rectangle stamp, Point pt)
         {
             this.Settings.Optimiser = new Optimisers.TargetOptimiser(pt);
             return FindSpaceFor(stamp);
@@ -138,29 +147,31 @@ namespace SoupSoftware.FindSpace
         }
 
 #if DEBUG
-        public Rectangle[] FindSpaceFor(Rectangle[] stamps, string filename = "")
+        public Rectangle?[] FindSpaceFor(Rectangle[] stamps, string filename = "")
         {
             Stopwatch sw = new Stopwatch();
 #else
-        public Rectangle[] FindSpaceFor(Rectangle[] stamps)
+        public Rectangle?[] FindSpaceFor(Rectangle[] stamps)
         {
 #endif
             stamps = SortStamps(stamps);
 
-            List<Rectangle> results = new List<Rectangle>();
+            List<Rectangle?> results = new List<Rectangle?>();
 
             int count = 0;
             foreach (Rectangle stamp in stamps)
             {
 #if DEBUG
                 sw.Restart();
-                Rectangle res = FindSpaceFor(stamp, filename, count);
+                Rectangle? res = FindSpaceFor(stamp, filename, count);
                 Trace.WriteLine($"FindSpaceFor: {sw.ElapsedMilliseconds}ms");
 #else
-                Rectangle res = FindSpaceFor(stamp);
+                Rectangle? res = FindSpaceFor(stamp);
 #endif
-
-                masks.AddStampToMask(res);
+                if (res.HasValue)
+                {
+                    masks.AddStampToMask(res.Value);
+                }
                 results.Add(res);
                 count++;
 #if DEBUG && TRACE
@@ -173,10 +184,10 @@ namespace SoupSoftware.FindSpace
         }
 
 #if DEBUG
-        public Rectangle FindSpaceFor(Rectangle stamp, string filename = "", int count = 0)
+        public Rectangle? FindSpaceFor(Rectangle stamp, string filename = "", int count = 0)
         {
 #else
-        public Rectangle FindSpaceFor(Rectangle stamp)
+        public Rectangle? FindSpaceFor(Rectangle stamp)
         {
 #endif
             if ((WorkArea.Height - (2 * Settings.Padding + stamp.Height) < 0) ||

@@ -13,17 +13,17 @@ namespace FindSpaceTests
     {
 
         [DataTestMethod]
-        [DataRow(typeof(VerticalThenHorizontalSweepPointGenerator), new int[] { 10, 10 })]
-        [DataRow(typeof(VerticalThenHorizontalSweepPointGenerator), new int[] { 16, 10 })]
-        [DataRow(typeof(VerticalThenHorizontalSweepPointGenerator), new int[] { 10, 16 })]
+        //[DataRow(typeof(VerticalThenHorizontalSweepPointGenerator), new int[] { 10, 10 })]
+        //[DataRow(typeof(VerticalThenHorizontalSweepPointGenerator), new int[] { 16, 10 })]
+        //[DataRow(typeof(VerticalThenHorizontalSweepPointGenerator), new int[] { 10, 16 })]
 
         [DataRow(typeof(HorizontalThenVerticalSweepPointGenerator), new int[] { 10, 10 })]
         [DataRow(typeof(HorizontalThenVerticalSweepPointGenerator), new int[] { 16, 10 })]
         [DataRow(typeof(HorizontalThenVerticalSweepPointGenerator), new int[] { 10, 16 })]
 
-        [DataRow(typeof(DiagonalPointGenerator), new int[] { 10, 10 })]
-        [DataRow(typeof(DiagonalPointGenerator), new int[] { 16, 10 })]
-        [DataRow(typeof(DiagonalPointGenerator), new int[] { 10, 16 })]
+        //[DataRow(typeof(DiagonalPointGenerator), new int[] { 10, 10 })]
+        //[DataRow(typeof(DiagonalPointGenerator), new int[] { 16, 10 })]
+        //[DataRow(typeof(DiagonalPointGenerator), new int[] { 10, 16 })]
         public void PointGeneratorTests(Type t, int[] dims)
         {
             List<Point> p = new List<Point>();
